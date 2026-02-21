@@ -1,0 +1,4 @@
+{
+  "dropIndexes": "message",
+  "index": "createdAt_1"
+}

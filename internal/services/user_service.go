@@ -1,0 +1,47 @@
+package services
+
+import (
+	"context"
+	"log/slog"
+	"socket-flow/internal/models"
+	"socket-flow/internal/repositories"
+	"socket-flow/pkg/postgres"
+)
+
+type userService struct {
+	repo        repositories.UserRepository
+	transaction postgres.TransactionManager
+}
+
+type UserService interface {
+	GetUserByPhone(ctx context.Context, email string) (*models.UserResponse, error)
+}
+
+func NewUserService(transaction postgres.TransactionManager, repo repositories.UserRepository) UserService {
+	return &userService{
+		transaction: transaction,
+		repo:        repo,
+	}
+}
+
+func (u userService) GetUserByPhone(ctx context.Context, phone string) (*models.UserResponse, error) {
+
+	var result *models.User
+
+	if err := u.transaction.WithReadOnlyTransaction(ctx, func(ctx context.Context) error {
+		var err error
+		result, err = u.repo.GetUserByPhoneNumber(ctx, models.NormalizePhone(phone))
+		return err
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to get user by phone", "phone", phone, "error", err)
+		return nil, err
+	}
+
+	return &models.UserResponse{
+		Id:          result.Id,
+		Email:       result.Email,
+		PhoneNumber: &result.PhoneNumber,
+		Role:        result.Role,
+	}, nil
+
+}

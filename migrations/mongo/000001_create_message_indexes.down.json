@@ -1,0 +1,13 @@
+{
+  "createIndexes": "message",
+  "indexes": [
+    {
+      "key": {
+        "from": 1,
+        "to": 1,
+        "createdAt": -1
+      },
+      "name": "createdAt_1"
+    }
+  ]
+}
