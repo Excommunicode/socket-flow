@@ -37,18 +37,13 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		}
 	}()
 
-	db, err = initDB(cfg.Postgres)
-	if err != nil {
+	if db, err = initDB(cfg.Postgres); err != nil {
 		return nil, err
 	}
-
-	mongoClient, err = InitMongoDB(ctx, cfg.Mongo)
-	if err != nil {
+	if mongoClient, err = InitMongoDB(ctx, cfg.Mongo); err != nil {
 		return nil, err
 	}
-
-	redisClient, err = InitRedis(cfg.Redis)
-	if err != nil {
+	if redisClient, err = InitRedis(cfg.Redis); err != nil {
 		return nil, err
 	}
 
@@ -60,17 +55,17 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	handler := InitHandler(services, upgrader)
 	routers := InitRouters(handler)
 
+	srv := &http.Server{
+		Addr:              ":" + cfg.Server.Port,
+		Handler:           routers,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
 	if err := runPgMigrations(cfg.Postgres); err != nil {
 		return nil, fmt.Errorf("pg migrations failed: %+v", err)
 	}
 	if err := runMongoMigration(cfg.Mongo); err != nil {
 		return nil, fmt.Errorf("mongo migrations failed: %+v", err)
-	}
-
-	srv := &http.Server{
-		Addr:              ":" + cfg.Server.Port,
-		Handler:           routers,
-		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	srv.RegisterOnShutdown(func() {
