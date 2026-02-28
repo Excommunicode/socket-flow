@@ -46,7 +46,10 @@ func (u *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 }
 
 func (u *userRepository) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
-	sql, args, err := u.pgClient.QueryBuilder.Select("EXISTS (SELECT 1 FROM users WHERE phone_number = ?)").
+	sql, args, err := u.pgClient.QueryBuilder.
+		Select("EXISTS (SELECT 1)").
+		From("users").
+		Where("phone_number = ?", phoneNumber).
 		ToSql()
 
 	if err != nil {
