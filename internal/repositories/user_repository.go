@@ -38,7 +38,7 @@ func (u *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 		return fmt.Errorf("failed to build query %w", err)
 	}
 
-	if _, err := u.pgClient.Exec(sql, args...); err != nil {
+	if _, err := u.pgClient.Exec(ctx, sql, args...); err != nil {
 		return fmt.Errorf("failed to execute query %w", err)
 	}
 
@@ -54,7 +54,7 @@ func (u *userRepository) ExistUserByPhoneNumber(ctx context.Context, phoneNumber
 	}
 
 	var exists bool
-	if err = u.pgClient.QueryRow(sql, args...).Scan(&exists); err != nil {
+	if err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&exists); err != nil {
 		return false, fmt.Errorf("failed to execute query %w", err)
 	}
 	return exists, nil
@@ -70,7 +70,7 @@ func (u *userRepository) GetUserByPhoneNumber(ctx context.Context, phoneNumber s
 	}
 
 	var user models.User
-	if err := u.pgClient.QueryRow(sql, args...).Scan(&user); err != nil {
+	if err := u.pgClient.QueryRow(ctx, sql, args...).Scan(&user); err != nil {
 		return nil, fmt.Errorf("failed to execute query %w", err)
 	}
 	return &user, nil

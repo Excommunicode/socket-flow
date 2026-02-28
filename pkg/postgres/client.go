@@ -22,30 +22,31 @@ func NewClient(db *sqlx.DB) *Client {
 	}
 }
 
-func (c *Client) Exec(query string, args ...interface{}) (sql.Result, error) {
-	res, err := c.pg.Exec(query, args...)
-	if err != nil {
-		return nil, err
+func (c *Client) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	if tx, ok := TxFromContext(ctx); ok && tx != nil {
+		return tx.ExecContext(ctx, query, args...)
 	}
-	return res, nil
+	return c.pg.ExecContext(ctx, query, args...)
 }
 
-func (c *Client) Query(query string, args ...interface{}) (*sql.Rows, error) {
-	rows, err := c.pg.Query(query, args...)
-	if err != nil {
-		return nil, err
+func (c *Client) Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	if tx, ok := TxFromContext(ctx); ok {
+		return tx.QueryContext(ctx, query, args...)
 	}
-	return rows, nil
+	return c.pg.QueryContext(ctx, query, args...)
 }
 
-func (c *Client) QueryRow(query string, args ...interface{}) *sql.Row {
-	return c.pg.QueryRow(query, args...)
+func (c *Client) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	if tx, ok := TxFromContext(ctx); ok && tx != nil {
+		return tx.QueryRowContext(ctx, query, args...)
+	}
+
+	return c.pg.QueryRowContext(ctx, query, args...)
 }
 
-func (c *Client) Select(dest interface{}, query string, args ...interface{}) error {
-	return c.pg.Select(dest, query, args...)
-}
-
-func (c *Client) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+func (c *Client) Select(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	if tx, ok := TxFromContext(ctx); ok && tx != nil {
+		return tx.SelectContext(ctx, dest, query, args...)
+	}
 	return c.pg.SelectContext(ctx, dest, query, args...)
 }
