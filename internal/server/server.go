@@ -17,7 +17,6 @@ import (
 )
 
 func NewServer(ctx context.Context) (*http.Server, error) {
-
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return nil, err
@@ -47,11 +46,12 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		return nil, err
 	}
 
-	upgrader := InitWebSocket(cfg.WebSocket)
+	transactor := postgres.NewTransactionManager(db)
 
+	upgrader := InitWebSocket(cfg.WebSocket)
 	pgClient := postgres.NewClient(db)
 	repositories := InitRepositories(*pgClient, mongoClient, redisClient, cfg.Mongo)
-	services := InitServices(pgClient, repositories)
+	services := InitServices(transactor, repositories)
 	handler := InitHandler(services, upgrader)
 	routers := InitRouters(handler)
 

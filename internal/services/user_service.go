@@ -10,14 +10,14 @@ import (
 
 type userService struct {
 	repo        repositories.UserRepository
-	transaction postgres.TransactionManager
+	transaction postgres.Transactor
 }
 
 type UserService interface {
 	GetUserByPhone(ctx context.Context, email string) (*models.UserResponse, error)
 }
 
-func NewUserService(transaction postgres.TransactionManager, repo repositories.UserRepository) UserService {
+func NewUserService(transaction postgres.Transactor, repo repositories.UserRepository) UserService {
 	return &userService{
 		transaction: transaction,
 		repo:        repo,
@@ -28,7 +28,7 @@ func (u userService) GetUserByPhone(ctx context.Context, phone string) (*models.
 
 	var result *models.User
 
-	if err := u.transaction.WithReadOnlyTransaction(ctx, func(ctx context.Context) error {
+	if err := u.transaction.WithinNewRWTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		result, err = u.repo.GetUserByPhoneNumber(ctx, models.NormalizePhone(phone))
 		return err

@@ -2,9 +2,9 @@ package postgres
 
 import "context"
 
-type TransactionManager interface {
-	WithReadOnlyTransaction(ctx context.Context, fn func(ctx context.Context) error) error
-	WithReadWriteTransaction(ctx context.Context, fn func(ctx context.Context) error) error
-	WithNestedReadOnly(ctx context.Context, fn func(ctx context.Context) error) error
-	WithNestedReadWrite(ctx context.Context, fn func(ctx context.Context) error) error
+type Transactor interface {
+	WithinROTransaction(context.Context, func(ctx context.Context) error) error
+	WithinNewROTransaction(context.Context, func(ctx context.Context) error) error
+	WithinRWTransaction(context.Context, func(ctx context.Context) error) error
+	WithinNewRWTransaction(context.Context, func(ctx context.Context) error) error
 }

@@ -3,157 +3,49 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
-	"sync/atomic"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 )
 
+var queryBuilder = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
 type Client struct {
-	Db *sqlx.DB
+	pg           *sqlx.DB
+	QueryBuilder squirrel.StatementBuilderType
 }
 
 func NewClient(db *sqlx.DB) *Client {
 	return &Client{
-		Db: db,
+		pg:           db,
+		QueryBuilder: queryBuilder,
 	}
 }
 
-var savepointCounter atomic.Uint64
-
-// ErrNoTransactionInContext возвращается, если в контексте нет текущей транзакции.
-var ErrNoTransactionInContext = errors.New("no transaction in context")
-
-type txContextKey struct{}
-
-var txKey = &txContextKey{}
-
-// WithTx сохраняет транзакцию в контексте.
-func WithTx(ctx context.Context, tx *sqlx.Tx) context.Context {
-	return context.WithValue(ctx, txKey, tx)
-}
-
-// TxFromContext возвращает текущую транзакцию из контекста или nil.
-func TxFromContext(ctx context.Context) *sqlx.Tx {
-	v := ctx.Value(txKey)
-	if v == nil {
-		return nil
-	}
-	tx, _ := v.(*sqlx.Tx)
-	return tx
-}
-
-func (m *Client) WithReadOnlyTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
-	return WithReadOnlyTransaction(ctx, m.Db, fn)
-}
-
-func (m *Client) WithReadWriteTransaction(ctx context.Context, fn func(ctx context.Context) error) error {
-	return WithReadWriteTransaction(ctx, m.Db, fn)
-}
-
-func (m *Client) WithNestedReadOnly(ctx context.Context, fn func(ctx context.Context) error) error {
-	return WithNestedReadOnly(ctx, fn)
-}
-
-func (m *Client) WithNestedReadWrite(ctx context.Context, fn func(ctx context.Context) error) error {
-	return WithNestedReadWrite(ctx, fn)
-}
-
-func WithReadOnlyTransaction(ctx context.Context, db *sqlx.DB, fn func(ctx context.Context) error) error {
-	tx, err := db.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true, Isolation: sql.LevelReadCommitted})
+func (c *Client) Exec(query string, args ...interface{}) (sql.Result, error) {
+	res, err := c.pg.Exec(query, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-		}
-	}()
-	txCtx := WithTx(ctx, tx)
-	if err := fn(txCtx); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return errors.Join(err, rbErr)
-		}
-		return err
-	}
-	return tx.Commit()
+	return res, nil
 }
 
-func WithReadWriteTransaction(ctx context.Context, db *sqlx.DB, fn func(ctx context.Context) error) error {
-	tx, err := db.BeginTxx(ctx, &sql.TxOptions{ReadOnly: false, Isolation: sql.LevelReadCommitted})
+func (c *Client) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	rows, err := c.pg.Query(query, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-		}
-	}()
-	txCtx := WithTx(ctx, tx)
-	if err := fn(txCtx); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return errors.Join(err, rbErr)
-		}
-		return err
-	}
-	return tx.Commit()
+	return rows, nil
 }
 
-func WithNestedReadOnly(ctx context.Context, fn func(ctx context.Context) error) error {
-	parent := TxFromContext(ctx)
-	if parent == nil {
-		return ErrNoTransactionInContext
-	}
-	name := fmt.Sprintf("sp_%d", savepointCounter.Add(1))
-	if _, err := parent.ExecContext(ctx, "SET LOCAL transaction_read_only = on"); err != nil {
-		return err
-	}
-	if _, err := parent.ExecContext(ctx, "SAVEPOINT "+name); err != nil {
-		_, _ = parent.ExecContext(ctx, "SET LOCAL transaction_read_only = off")
-		return err
-	}
-	var fnErr error
-	defer func() {
-		if p := recover(); p != nil {
-			_, _ = parent.ExecContext(ctx, "ROLLBACK TO SAVEPOINT "+name)
-			_, _ = parent.ExecContext(ctx, "SET LOCAL transaction_read_only = off")
-			panic(p)
-		}
-		if fnErr != nil {
-			_, _ = parent.ExecContext(ctx, "ROLLBACK TO SAVEPOINT "+name)
-		} else {
-			_, _ = parent.ExecContext(ctx, "RELEASE SAVEPOINT "+name)
-		}
-		_, _ = parent.ExecContext(ctx, "SET LOCAL transaction_read_only = off")
-	}()
-	fnErr = fn(ctx)
-	return fnErr
+func (c *Client) QueryRow(query string, args ...interface{}) *sql.Row {
+	return c.pg.QueryRow(query, args...)
 }
 
-func WithNestedReadWrite(ctx context.Context, fn func(ctx context.Context) error) error {
-	parent := TxFromContext(ctx)
-	if parent == nil {
-		return ErrNoTransactionInContext
-	}
-	name := fmt.Sprintf("sp_%d", savepointCounter.Add(1))
-	if _, err := parent.ExecContext(ctx, "SAVEPOINT "+name); err != nil {
-		return err
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			_, _ = parent.ExecContext(ctx, "ROLLBACK TO SAVEPOINT "+name)
-			panic(p)
-		}
-	}()
-	if err := fn(ctx); err != nil {
-		if _, rbErr := parent.ExecContext(ctx, "ROLLBACK TO SAVEPOINT "+name); rbErr != nil {
-			return errors.Join(err, rbErr)
-		}
-		return err
-	}
-	if _, err := parent.ExecContext(ctx, "RELEASE SAVEPOINT "+name); err != nil {
-		return err
-	}
-	return nil
+func (c *Client) Select(dest interface{}, query string, args ...interface{}) error {
+	return c.pg.Select(dest, query, args...)
+}
+
+func (c *Client) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	return c.pg.SelectContext(ctx, dest, query, args...)
 }

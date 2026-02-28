@@ -16,7 +16,7 @@ import (
 
 type authService struct {
 	repo            repositories.UserRepository
-	transaction     postgres.TransactionManager
+	transaction     postgres.Transactor
 	tokenRepository repositories.TokenRepository
 }
 
@@ -28,7 +28,7 @@ type AuthService interface {
 	ValidateJwtToken(userId uuid.UUID, tokenString string) (bool, error)
 }
 
-func NewAuthService(transaction postgres.TransactionManager,
+func NewAuthService(transaction postgres.Transactor,
 	repo repositories.UserRepository,
 	tokenRepository repositories.TokenRepository) AuthService {
 	return &authService{
@@ -46,7 +46,7 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 	req.PhoneNumber = models.NormalizePhone(req.PhoneNumber)
 
 	var existingUser bool
-	if err := s.transaction.WithReadOnlyTransaction(ctx, func(ctx context.Context) error {
+	if err := s.transaction.WithinNewRWTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		existingUser, err = s.repo.ExistUserByPhoneNumber(ctx, req.PhoneNumber)
 		return err
@@ -71,7 +71,7 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 		Password:    hashedPassword,
 	}
 
-	if err := s.transaction.WithReadWriteTransaction(ctx, func(ctx context.Context) error {
+	if err := s.transaction.WithinRWTransaction(ctx, func(ctx context.Context) error {
 		if err := s.repo.CreateUser(ctx, user); err != nil {
 			return err
 		}

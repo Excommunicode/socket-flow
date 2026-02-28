@@ -2,11 +2,12 @@ package repositories
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"socket-flow/internal/db"
+	"fmt"
+
 	"socket-flow/internal/models"
 	"socket-flow/pkg/postgres"
+
+	"github.com/Masterminds/squirrel"
 )
 
 type userRepository struct {
@@ -25,45 +26,52 @@ func NewUserRepository(client postgres.Client) UserRepository {
 	}
 }
 
-func (u *userRepository) CreateUser(ctx context.Context, user *models.User) error {
-	queries := db.QueriesFromContext(ctx, u.pgClient.Db)
+const users = "users"
 
-	err := queries.CreateUser(ctx, db.CreateUserParams{
-		PhoneNumber: user.PhoneNumber,
-		Password:    user.Password,
-	})
-	return err
+func (u *userRepository) CreateUser(ctx context.Context, user *models.User) error {
+	sql, args, err := u.pgClient.QueryBuilder.Insert(users).
+		Columns("phone_number", "password").
+		Values(user.PhoneNumber, user.Password).
+		ToSql()
+
+	if err != nil {
+		return fmt.Errorf("failed to build query %w", err)
+	}
+
+	if _, err := u.pgClient.Exec(sql, args...); err != nil {
+		return fmt.Errorf("failed to execute query %w", err)
+	}
+
+	return nil
 }
 
 func (u *userRepository) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
-	queries := db.QueriesFromContext(ctx, u.pgClient.Db)
+	sql, args, err := u.pgClient.QueryBuilder.Select("EXISTS (SELECT 1 FROM users WHERE phone_number = ?)").
+		ToSql()
 
-	exists, err := queries.ExistUserByPhoneNumber(ctx, phoneNumber)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to build query %w", err)
+	}
+
+	var exists bool
+	if err = u.pgClient.QueryRow(sql, args...).Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to execute query %w", err)
 	}
 	return exists, nil
 }
 
 func (u *userRepository) GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
-	queries := db.QueriesFromContext(ctx, u.pgClient.Db)
-
-	dbUser, err := queries.GetUserByPhoneNumber(ctx, phoneNumber)
+	sql, args, err := u.pgClient.QueryBuilder.Select("*").
+		From(users).
+		Where(squirrel.Eq{"phone_number": phoneNumber}).
+		ToSql()
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
-		return nil, err
+		return nil, fmt.Errorf("failed to build query %w", err)
 	}
 
-	return &models.User{
-		Id:          dbUser.ID,
-		Username:    &dbUser.Username.String,
-		Email:       &dbUser.Email.String,
-		PhoneNumber: dbUser.PhoneNumber,
-		Role:        models.Role(dbUser.Role),
-		Password:    dbUser.Password,
-		CreatedAt:   dbUser.CreatedAt,
-		UpdateAt:    &dbUser.UpdatedAt.Time,
-	}, nil
+	var user models.User
+	if err := u.pgClient.QueryRow(sql, args...).Scan(&user); err != nil {
+		return nil, fmt.Errorf("failed to execute query %w", err)
+	}
+	return &user, nil
 }

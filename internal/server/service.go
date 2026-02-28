@@ -13,7 +13,7 @@ type Services struct {
 	Hub            *websocket.Hub
 }
 
-func InitServices(transactionManager postgres.TransactionManager, repositories *Repositories) *Services {
+func InitServices(transactionManager postgres.Transactor, repositories *Repositories) *Services {
 	authService := services.NewAuthService(transactionManager, repositories.UserRepository, repositories.TokenRepository)
 	messageService := services.NewMessageService(repositories.MessageRepository)
 	userService := services.NewUserService(transactionManager, repositories.UserRepository)
