@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-type messageRepository struct {
+type MessageRepo struct {
 	messageCollection *mongo.Collection
 }
 
@@ -24,25 +24,26 @@ type MessageRepository interface {
 
 const MessageCollection = "message"
 
-func NewMessageRepository(client *mongo.Client, cfg config.MongoConfig) MessageRepository {
+func NewMessageRepository(client *mongo.Client, cfg config.MongoConfig) *MessageRepo {
 	collection := client.Database(cfg.Database).Collection(MessageCollection)
-	return &messageRepository{
+
+	return &MessageRepo{
 		messageCollection: collection,
 	}
-
 }
 
-func (m *messageRepository) SaveMessage(ctx context.Context, msg models.Message) error {
+func (m *MessageRepo) SaveMessage(ctx context.Context, msg models.Message) error {
 
 	_, err := m.messageCollection.InsertOne(ctx, msg)
 
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (m *messageRepository) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error) {
+func (m *MessageRepo) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error) {
 	filters := bson.M{
 		"$or": bson.A{
 			bson.M{
@@ -79,12 +80,13 @@ func (m *messageRepository) FindMessages(ctx context.Context, filter models.Find
 		if err := cursor.Decode(&message); err != nil {
 			return nil, err
 		}
+
 		result = append(result, message)
 	}
 	return result, nil
 }
 
-func (m *messageRepository) MarkAsDeliveredMessages(ctx context.Context, messageIds []bson.ObjectID) error {
+func (m *MessageRepo) MarkAsDeliveredMessages(ctx context.Context, messageIds []bson.ObjectID) error {
 
 	filter := bson.M{
 		"_id": bson.M{
@@ -106,6 +108,6 @@ func (m *messageRepository) MarkAsDeliveredMessages(ctx context.Context, message
 	return nil
 }
 
-func (m *messageRepository) DeleteMessages(ctx context.Context, messageIds []bson.ObjectID) {
+func (m *MessageRepo) DeleteMessages(ctx context.Context, messageIds []bson.ObjectID) {
 
 }

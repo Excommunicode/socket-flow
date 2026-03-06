@@ -36,13 +36,23 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		}
 	}()
 
-	if db, err = initDB(cfg.Postgres); err != nil {
+	db, err = initDB(cfg.Postgres)
+	if err != nil {
 		return nil, err
 	}
-	if mongoClient, err = InitMongoDB(ctx, cfg.Mongo); err != nil {
+
+	mongoClient, err = initMongoDB(ctx, cfg.Mongo)
+	if err != nil {
 		return nil, err
 	}
-	if redisClient, err = InitRedis(cfg.Redis); err != nil {
+
+	redisClient, err = initRedis(cfg.Redis)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = initMinioS3Client(ctx, cfg.Minio)
+	if err != nil {
 		return nil, err
 	}
 
@@ -51,20 +61,26 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	upgrader := InitWebSocket(cfg.WebSocket)
 	pgClient := postgres.NewClient(db)
 	repositories := InitRepositories(*pgClient, mongoClient, redisClient, cfg.Mongo)
-	services := InitServices(transactor, repositories)
-	handler := InitHandler(services, upgrader)
-	routers := InitRouters(handler)
+	services := initServices(transactor, repositories)
+	handler := initHandler(services, upgrader)
+	routers := initRouters(handler)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Server.Port,
 		Handler:           routers,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
-	if err := runPgMigrations(cfg.Postgres); err != nil {
+	err = runPgMigrations(cfg.Postgres)
+	if err != nil {
 		return nil, fmt.Errorf("pg migrations failed: %+v", err)
 	}
-	if err := runMongoMigration(cfg.Mongo); err != nil {
+
+	err = runMongoMigration(cfg.Mongo)
+	if err != nil {
 		return nil, fmt.Errorf("mongo migrations failed: %+v", err)
 	}
 

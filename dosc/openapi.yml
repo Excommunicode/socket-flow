@@ -16,7 +16,7 @@ servers:
 tags:
   - name: auth
     description: Registration and login
-  - name: websocket
+  - name: ws
     description: WebSocket connection
   - name: messages
     description: Message search and retrieval
@@ -116,7 +116,7 @@ paths:
   /ws:
     get:
       tags:
-        - websocket
+        - ws
       summary: WebSocket connection
       description: |
         Establishes a WebSocket connection for chat. Expects WebSocket protocol upgrade (client typically uses GET with Upgrade header).
@@ -336,7 +336,9 @@ components:
           type: string
           format: date-time
           description: Message creation timestamp
-          example: "2025-02-07T10:30:00Z"    FindMessagesRequest:
+          example: "2025-02-07T10:30:00Z"
+
+    FindMessagesRequest:
       type: object
       required:
         - from
@@ -373,7 +375,9 @@ components:
         username:
           type: string
           description: Phone number to search for user (field name is username but value should be phone number)
-          example: "+79001234567"    UserResponse:
+          example: "+79001234567"
+
+    UserResponse:
       type: object
       properties:
         id:

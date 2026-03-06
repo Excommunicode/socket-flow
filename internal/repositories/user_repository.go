@@ -10,7 +10,7 @@ import (
 	"github.com/Masterminds/squirrel"
 )
 
-type userRepository struct {
+type UserRepo struct {
 	pgClient postgres.Client
 }
 
@@ -20,19 +20,22 @@ type UserRepository interface {
 	GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error)
 }
 
-func NewUserRepository(client postgres.Client) UserRepository {
-	return &userRepository{
+func NewUserRepository(client postgres.Client) *UserRepo {
+	return &UserRepo{
 		pgClient: client,
 	}
 }
 
 const users = "users"
 
-func (u *userRepository) CreateUser(ctx context.Context, user *models.User) error {
-	sql, args, err := u.pgClient.QueryBuilder.Insert(users).
+var columns = []string{"id", "phone_number", "email"}
+
+func (u *UserRepo) CreateUser(ctx context.Context, user *models.User) error {
+	query := u.pgClient.QueryBuilder.Insert(users).
 		Columns("phone_number", "password").
-		Values(user.PhoneNumber, user.Password).
-		ToSql()
+		Values(user.PhoneNumber, user.Password)
+
+	sql, args, err := u.pgClient.ToSQL(query)
 
 	if err != nil {
 		return fmt.Errorf("failed to build query %w", err)
@@ -45,12 +48,13 @@ func (u *userRepository) CreateUser(ctx context.Context, user *models.User) erro
 	return nil
 }
 
-func (u *userRepository) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
-	sql, args, err := u.pgClient.QueryBuilder.
+func (u *UserRepo) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
+	query := u.pgClient.QueryBuilder.
 		Select("EXISTS (SELECT 1)").
-		From("users").
-		Where("phone_number = ?", phoneNumber).
-		ToSql()
+		From(users).
+		Where(squirrel.Eq{"phone_number": phoneNumber})
+
+	sql, args, err := u.pgClient.ToSQL(query)
 
 	if err != nil {
 		return false, fmt.Errorf("failed to build query %w", err)
@@ -60,21 +64,27 @@ func (u *userRepository) ExistUserByPhoneNumber(ctx context.Context, phoneNumber
 	if err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&exists); err != nil {
 		return false, fmt.Errorf("failed to execute query %w", err)
 	}
+
 	return exists, nil
 }
 
-func (u *userRepository) GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
-	sql, args, err := u.pgClient.QueryBuilder.Select("*").
+func (u *UserRepo) GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
+	query := u.pgClient.QueryBuilder.Select(columns...).
 		From(users).
-		Where(squirrel.Eq{"phone_number": phoneNumber}).
-		ToSql()
+		Where(squirrel.Eq{"phone_number": phoneNumber})
+
+	sql, args, err := u.pgClient.ToSQL(query)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to build query %w", err)
 	}
 
 	var user models.User
-	if err := u.pgClient.QueryRow(ctx, sql, args...).Scan(&user); err != nil {
+	if err := u.pgClient.QueryRow(ctx, sql, args...).Scan(&user.Id,
+		&user.PhoneNumber,
+		&user.Email); err != nil {
 		return nil, fmt.Errorf("failed to execute query %w", err)
 	}
+
 	return &user, nil
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+
 	errs "socket-flow/internal/errors"
 	"socket-flow/internal/models"
 	"socket-flow/internal/repositories"
@@ -46,7 +47,7 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 	req.PhoneNumber = models.NormalizePhone(req.PhoneNumber)
 
 	var existingUser bool
-	if err := s.transaction.WithinNewRWTransaction(ctx, func(ctx context.Context) error {
+	if err := s.transaction.WithinRWTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		existingUser, err = s.repo.ExistUserByPhoneNumber(ctx, req.PhoneNumber)
 		return err
@@ -57,12 +58,14 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 
 	if existingUser {
 		log.WarnContext(ctx, "registration failed: user already exists")
+
 		return "", "", "", errs.ErrUserExists
 	}
 
 	hashedPassword, err := jwt.HashPassword(req.Password)
 	if err != nil {
 		log.ErrorContext(ctx, "password hashing failed", "err", err)
+
 		return "", "", "", err
 	}
 

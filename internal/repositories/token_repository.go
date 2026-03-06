@@ -46,9 +46,11 @@ func (ts *tokenRepository) SaveJWTokens(
 	if err := ts.SaveJWToken(userID, accessToken); err != nil {
 		return err
 	}
+
 	if err := ts.SaveJWToken(userID, refreshToken); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -57,7 +59,9 @@ func (ts *tokenRepository) DeleteJWToken(userID uuid.UUID, token string) error {
 	if err != nil {
 		return err
 	}
+
 	key := fmt.Sprintf("user:%d:jwt:%s", userID, claims.ID)
+
 	return ts.redisClient.Del(context.Background(), key).Err()
 }
 

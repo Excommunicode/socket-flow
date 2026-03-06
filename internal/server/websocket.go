@@ -13,6 +13,7 @@ func InitWebSocket(cfg config.WebSocketConfig) *websocket.Upgrader {
 	if cfg.AllowedOrigins != "" {
 		allowedOrigins = strings.Split(cfg.AllowedOrigins, ",")
 	}
+
 	return socket.NewUpgrader(
 		cfg.ReadBufferSize,
 		cfg.WriteBufferSize,

@@ -15,10 +15,13 @@ type Repositories struct {
 	TokenRepository   repositories.TokenRepository
 }
 
-func InitRepositories(db postgres.Client, mongoClient *mongo.Client, redisClient *redis.Client, cfg config.MongoConfig) *Repositories {
+func InitRepositories(db postgres.Client, mongoClient *mongo.Client, redisClient *redis.Client,
+	cfg config.MongoConfig) *Repositories {
+
 	userRepository := repositories.NewUserRepository(db)
 	messageRepository := repositories.NewMessageRepository(mongoClient, cfg)
 	tokenRepository := repositories.NewTokenRepository(redisClient)
+
 	return &Repositories{
 		UserRepository:    userRepository,
 		MessageRepository: messageRepository,

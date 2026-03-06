@@ -48,3 +48,9 @@ var (
 	ErrInvalidPostgresDSN       = errors.New("invalid Postgres DSN")
 	ErrPostgresConnectionFailed = errors.New("failed to connect to Postgres")
 )
+
+// Connection to Mongo
+var (
+	ErrMongoConnectionFailed = errors.New("failed to connect to Mongo")
+	ErrMongoPingConnection   = errors.New("failed to ping Mongo")
+)

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"socket-flow/internal/models"
 	"socket-flow/internal/repositories"
@@ -40,15 +39,11 @@ func (m *messageService) CreateMessage(ctx context.Context, msg models.RequestMe
 		slog.ErrorContext(ctx, "cannot save the message", "err", err)
 		return err
 	}
+
 	return nil
 }
 
 func (m *messageService) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error) {
-
-	from := filter.From.String()
-	to := filter.To.String()
-
-	fmt.Println("messages ", from, to)
 
 	messages, err := m.MessageRepository.FindMessages(ctx, filter)
 	if err != nil {

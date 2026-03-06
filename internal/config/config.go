@@ -32,19 +32,32 @@ type (
 		EnableCompression bool   `env:"WS_ENABLE_COMPRESSION" env-default:"true"`
 	}
 
+	MinioConfig struct {
+		Endpoint        string `env:"MINIO_ENDPOINT" env-default:"localhost:9000"` // host:port
+		AccessKeyID     string `env:"MINIO_ACCESS_KEY" env-default:"minioadmin"`
+		SecretAccessKey string `env:"MINIO_SECRET_KEY" env-default:"minioadmin"`
+		Bucket          string `env:"MINIO_BUCKET" env-default:"uploads"`
+		Region          string `env:"MINIO_REGION" env-default:""`
+		UseSSL          bool   `env:"MINIO_USE_SSL" env-default:"false"`
+	}
+
 	AppConfig struct {
 		Postgres  PGConfig
 		Mongo     MongoConfig
 		Redis     RedisConfig
 		Server    ServerConfig
+		Minio     MinioConfig
 		WebSocket WebSocketConfig
 	}
 )
 
 func LoadConfig() (*AppConfig, error) {
 	var config AppConfig
-	if err := cleanenv.ReadEnv(&config); err != nil {
+
+	err := cleanenv.ReadEnv(&config)
+	if err != nil {
 		return nil, err
 	}
+
 	return &config, nil
 }

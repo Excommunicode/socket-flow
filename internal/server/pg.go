@@ -13,6 +13,7 @@ func initDB(pgConfig config.PGConfig) (*sqlx.DB, error) {
 	if err != nil {
 		return connect, fmt.Errorf("open db: %+v", err)
 	}
+
 	if err := connect.DB.Ping(); err != nil {
 		return connect, fmt.Errorf("ping db: %v", err)
 	}

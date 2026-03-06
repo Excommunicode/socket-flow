@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func InitRouters(handler *Handler) *gin.Engine {
+func initRouters(handler *Handler) *gin.Engine {
 	router := gin.Default()
 
 	router.Use(middlewares.LoggerMiddleware())

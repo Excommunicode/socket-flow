@@ -25,33 +25,25 @@ type TransactionManager struct {
 	db *sqlx.DB
 }
 
-func NewTransactionManager(db *sqlx.DB) Transactor {
+func NewTransactionManager(db *sqlx.DB) *TransactionManager {
 	return &TransactionManager{db: db}
 }
 
 func (t *TransactionManager) WithinROTransaction(ctx context.Context, f func(ctx context.Context) error) error {
-	if _, ok := TxFromContext(ctx); ok {
-		return f(ctx)
-	}
-	return t.withTx(ctx, txRO, f)
-}
-
-func (t *TransactionManager) WithinNewROTransaction(ctx context.Context, f func(ctx context.Context) error) error {
 	return t.withTx(ctx, txRO, f)
 }
 
 func (t *TransactionManager) WithinRWTransaction(ctx context.Context, f func(ctx context.Context) error) error {
+	return t.withTx(ctx, txRW, f)
+}
+
+func (t *TransactionManager) withTx(ctx context.Context, opts *sql.TxOptions,
+	fn func(ctx context.Context) error) (err error) {
+
 	if _, ok := TxFromContext(ctx); ok {
-		return f(ctx)
+		return fn(ctx)
 	}
-	return t.withTx(ctx, txRW, f)
-}
 
-func (t *TransactionManager) WithinNewRWTransaction(ctx context.Context, f func(ctx context.Context) error) error {
-	return t.withTx(ctx, txRW, f)
-}
-
-func (t *TransactionManager) withTx(ctx context.Context, opts *sql.TxOptions, f func(ctx context.Context) error) error {
 	tx, err := t.db.BeginTxx(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -60,10 +52,13 @@ func (t *TransactionManager) withTx(ctx context.Context, opts *sql.TxOptions, f 
 	defer func() {
 		if p := recover(); p != nil {
 			_ = tx.Rollback()
+
 			panic(p)
 		}
+
 		if err != nil {
 			_ = tx.Rollback()
+
 			return
 		}
 
@@ -72,13 +67,14 @@ func (t *TransactionManager) withTx(ctx context.Context, opts *sql.TxOptions, f 
 		}
 	}()
 
-	ctxWithTx := contextWithTx(ctx, tx)
-	err = f(ctxWithTx)
+	err = fn(contextWithTx(ctx, tx))
+
 	return err
 }
 
 func TxFromContext(ctx context.Context) (*sqlx.Tx, bool) {
 	tx, ok := ctx.Value(txKey{}).(*sqlx.Tx)
+
 	return tx, ok
 }
 

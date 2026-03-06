@@ -8,7 +8,7 @@ import (
 	"socket-flow/pkg/postgres"
 )
 
-type userService struct {
+type UserServiceImpl struct {
 	repo        repositories.UserRepository
 	transaction postgres.Transactor
 }
@@ -17,23 +17,27 @@ type UserService interface {
 	GetUserByPhone(ctx context.Context, email string) (*models.UserResponse, error)
 }
 
-func NewUserService(transaction postgres.Transactor, repo repositories.UserRepository) UserService {
-	return &userService{
+func NewUserService(transaction postgres.Transactor, repo repositories.UserRepository) *UserServiceImpl {
+	return &UserServiceImpl{
 		transaction: transaction,
 		repo:        repo,
 	}
 }
 
-func (u userService) GetUserByPhone(ctx context.Context, phone string) (*models.UserResponse, error) {
+func (u UserServiceImpl) GetUserByPhone(ctx context.Context, phone string) (*models.UserResponse, error) {
 
 	var result *models.User
 
-	if err := u.transaction.WithinNewRWTransaction(ctx, func(ctx context.Context) error {
+	err := u.transaction.WithinROTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		result, err = u.repo.GetUserByPhoneNumber(ctx, models.NormalizePhone(phone))
+
 		return err
-	}); err != nil {
+	})
+
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to get user by phone", "phone", phone, "error", err)
+
 		return nil, err
 	}
 

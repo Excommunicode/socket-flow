@@ -24,15 +24,20 @@ func main() {
 
 	ctx := context.Background()
 	srv, err := server.NewServer(ctx)
+
 	if err != nil {
 		slog.Error("failed to initialize server", "err", err)
 		os.Exit(1)
 	}
 
 	done := make(chan struct{})
+
 	go func() {
 		defer close(done)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+
+		err := srv.ListenAndServe()
+
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed to listen", "err", err)
 			os.Exit(1)
 		}
@@ -51,7 +56,8 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	err = srv.Shutdown(shutdownCtx)
+	if err != nil {
 		slog.Error("server shutdown failed", "err", err)
 	}
 }

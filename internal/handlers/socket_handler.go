@@ -3,7 +3,7 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
-	socket "socket-flow/internal/websocket"
+	socket "socket-flow/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"

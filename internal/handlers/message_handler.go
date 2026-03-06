@@ -32,7 +32,9 @@ func (m *MessageHandler) FindMessage(c *gin.Context) {
 	if err != nil {
 		_ = c.Error(err)
 		errors.WriteError(c, 0, err)
+
 		return
 	}
+
 	c.JSON(http.StatusOK, result)
 }
