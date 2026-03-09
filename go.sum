@@ -6,6 +6,8 @@ github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak
 github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/Excommunicode/logging v0.0.0-20260309201917-c99f9f89ff94 h1:AP3oEhsUH9AFyYq4ruTHQPfSIdD3JYJZx/TUmBjLvL4=
 github.com/Excommunicode/logging v0.0.0-20260309201917-c99f9f89ff94/go.mod h1:hB6dmyxgdJe+G/VjdBJCDrIPx45P+ESKPRqaiJ6EI3A=
+github.com/Excommunicode/logging v0.1.0 h1:20JGI9oMuWuMguzy4IlyFCNSqcVKOMpRm6yX6SvEBqs=
+github.com/Excommunicode/logging v0.1.0/go.mod h1:UQP/gJiKROYlTY2CqsqeBxpHuXWtnjKP7mFq7lTOPT4=
 github.com/Masterminds/squirrel v1.5.4 h1:uUcX/aBc8O7Fg9kaISIUsHXdKuqehiXAMQTYX8afzqM=
 github.com/Masterminds/squirrel v1.5.4/go.mod h1:NNaOrjSoIDfDA40n7sr2tPNZRfjzjA400rg+riTZj10=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=

@@ -3,7 +3,7 @@ module socket-flow
 go 1.25.5
 
 require (
-	github.com/Excommunicode/logging v0.0.0-20260309201917-c99f9f89ff94
+	github.com/Excommunicode/logging v0.1.0
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/caitlinelfring/go-env-default v1.1.0
 	github.com/gin-contrib/cors v1.7.6
