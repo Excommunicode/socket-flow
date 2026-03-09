@@ -2,7 +2,7 @@ package middlewares
 
 import (
 	"net/http"
-	"socket-flow/pkg/jwt"
+	"socket-flow/internal/jwt"
 	"strings"
 
 	errs "socket-flow/internal/errors"

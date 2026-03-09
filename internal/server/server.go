@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"socket-flow/internal/postgres"
 	"time"
 
 	"socket-flow/internal/config"
-	"socket-flow/pkg/postgres"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
@@ -60,7 +60,7 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 
 	upgrader := InitWebSocket(cfg.WebSocket)
 	pgClient := postgres.NewClient(db)
-	repositories := InitRepositories(*pgClient, mongoClient, redisClient, cfg.Mongo)
+	repositories := InitRepositories(pgClient, mongoClient, redisClient, cfg.Mongo)
 	services := initServices(transactor, repositories)
 	handler := initHandler(services, upgrader)
 	routers := initRouters(handler)

@@ -9,7 +9,7 @@ import (
 
 	"github.com/caitlinelfring/go-env-default"
 	"github.com/golang-jwt/jwt/v5"
-	
+
 	errs "socket-flow/internal/errors"
 )
 

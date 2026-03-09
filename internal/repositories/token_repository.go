@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"socket-flow/pkg/jwt"
+	"socket-flow/internal/jwt"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,15 +19,15 @@ type TokenRepository interface {
 	ValidateJWToken(userID uuid.UUID, token string) (bool, error)
 }
 
-type tokenRepository struct {
+type TokenRepositoryImpl struct {
 	redisClient *redis.Client
 }
 
-func NewTokenRepository(client *redis.Client) TokenRepository {
-	return &tokenRepository{redisClient: client}
+func NewTokenRepository(client *redis.Client) *TokenRepositoryImpl {
+	return &TokenRepositoryImpl{redisClient: client}
 }
 
-func (ts *tokenRepository) SaveJWToken(userID uuid.UUID, token string) error {
+func (ts *TokenRepositoryImpl) SaveJWToken(userID uuid.UUID, token string) error {
 	claims, err := jwt.ParseJWT(token)
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func (ts *tokenRepository) SaveJWToken(userID uuid.UUID, token string) error {
 	return ts.redisClient.Set(context.Background(), key, token, duration).Err()
 }
 
-func (ts *tokenRepository) SaveJWTokens(
+func (ts *TokenRepositoryImpl) SaveJWTokens(
 	userID uuid.UUID, accessToken, refreshToken string,
 ) error {
 	if err := ts.SaveJWToken(userID, accessToken); err != nil {
@@ -54,7 +54,7 @@ func (ts *tokenRepository) SaveJWTokens(
 	return nil
 }
 
-func (ts *tokenRepository) DeleteJWToken(userID uuid.UUID, token string) error {
+func (ts *TokenRepositoryImpl) DeleteJWToken(userID uuid.UUID, token string) error {
 	claims, err := jwt.ParseJWT(token)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (ts *tokenRepository) DeleteJWToken(userID uuid.UUID, token string) error {
 	return ts.redisClient.Del(context.Background(), key).Err()
 }
 
-func (ts *tokenRepository) DeleteJWTokens(
+func (ts *TokenRepositoryImpl) DeleteJWTokens(
 	userID uuid.UUID, accessToken, refreshToken string,
 ) error {
 	if err := ts.DeleteJWToken(userID, accessToken); err != nil {
@@ -77,7 +77,7 @@ func (ts *tokenRepository) DeleteJWTokens(
 	return nil
 }
 
-func (ts *tokenRepository) ValidateJWToken(userID uuid.UUID, token string) (bool, error) {
+func (ts *TokenRepositoryImpl) ValidateJWToken(userID uuid.UUID, token string) (bool, error) {
 	claims, err := jwt.ParseJWT(token)
 	if err != nil {
 		return false, err

@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 	"socket-flow/internal/errors"
+	"socket-flow/internal/jwt"
 	"socket-flow/internal/models"
 	"socket-flow/internal/services"
-	"socket-flow/pkg/jwt"
 
 	"github.com/gin-gonic/gin"
 )

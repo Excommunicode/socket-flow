@@ -8,17 +8,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	txRO = &sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  true,
-	}
-	txRW = &sql.TxOptions{
-		Isolation: sql.LevelReadCommitted,
-		ReadOnly:  false,
-	}
-)
-
 type txKey struct{}
 
 type TransactionManager struct {
@@ -30,15 +19,15 @@ func NewTransactionManager(db *sqlx.DB) *TransactionManager {
 }
 
 func (t *TransactionManager) WithinROTransaction(ctx context.Context, f func(ctx context.Context) error) error {
-	return t.withTx(ctx, txRO, f)
+	return t.withTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: true}, f)
 }
 
 func (t *TransactionManager) WithinRWTransaction(ctx context.Context, f func(ctx context.Context) error) error {
-	return t.withTx(ctx, txRW, f)
+	return t.withTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false}, f)
 }
 
-func (t *TransactionManager) withTx(ctx context.Context, opts *sql.TxOptions,
-	fn func(ctx context.Context) error) (err error) {
+func (t *TransactionManager) withTx(ctx context.Context,
+	opts *sql.TxOptions, fn func(ctx context.Context) error) (err error) {
 
 	if _, ok := TxFromContext(ctx); ok {
 		return fn(ctx)

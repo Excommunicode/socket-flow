@@ -11,10 +11,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-type MessageRepo struct {
-	messageCollection *mongo.Collection
-}
-
 type MessageRepository interface {
 	SaveMessage(ctx context.Context, msg models.Message) error
 	FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error)
@@ -22,10 +18,14 @@ type MessageRepository interface {
 	DeleteMessages(ctx context.Context, messageIds []bson.ObjectID)
 }
 
-const MessageCollection = "message"
+type MessageRepo struct {
+	messageCollection *mongo.Collection
+}
+
+const messageCollection = "message"
 
 func NewMessageRepository(client *mongo.Client, cfg config.MongoConfig) *MessageRepo {
-	collection := client.Database(cfg.Database).Collection(MessageCollection)
+	collection := client.Database(cfg.Database).Collection(messageCollection)
 
 	return &MessageRepo{
 		messageCollection: collection,

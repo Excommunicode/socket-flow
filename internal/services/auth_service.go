@@ -5,12 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"socket-flow/internal/postgres"
 
 	errs "socket-flow/internal/errors"
+	"socket-flow/internal/jwt"
 	"socket-flow/internal/models"
 	"socket-flow/internal/repositories"
-	"socket-flow/pkg/jwt"
-	"socket-flow/pkg/postgres"
 
 	"github.com/google/uuid"
 )

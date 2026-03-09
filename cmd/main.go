@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"socket-flow/internal/server"
-	"socket-flow/pkg/logger"
+
+	_ "github.com/Excommunicode/logging"
 
 	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -19,9 +20,6 @@ import (
 )
 
 func main() {
-	newLogger := logger.New()
-	slog.SetDefault(newLogger)
-
 	ctx := context.Background()
 	srv, err := server.NewServer(ctx)
 

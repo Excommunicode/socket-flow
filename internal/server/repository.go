@@ -2,8 +2,8 @@ package server
 
 import (
 	"socket-flow/internal/config"
+	"socket-flow/internal/postgres"
 	"socket-flow/internal/repositories"
-	"socket-flow/pkg/postgres"
 
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -15,7 +15,7 @@ type Repositories struct {
 	TokenRepository   repositories.TokenRepository
 }
 
-func InitRepositories(db postgres.Client, mongoClient *mongo.Client, redisClient *redis.Client,
+func InitRepositories(db *postgres.PgClient, mongoClient *mongo.Client, redisClient *redis.Client,
 	cfg config.MongoConfig) *Repositories {
 
 	userRepository := repositories.NewUserRepository(db)

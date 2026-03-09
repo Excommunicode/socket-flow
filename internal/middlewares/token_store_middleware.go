@@ -3,8 +3,8 @@ package middlewares
 import (
 	"net/http"
 	errs "socket-flow/internal/errors"
+	"socket-flow/internal/jwt"
 	"socket-flow/internal/services"
-	"socket-flow/pkg/jwt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

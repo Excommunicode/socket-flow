@@ -3,16 +3,13 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"socket-flow/internal/postgres"
 
 	"socket-flow/internal/models"
-	"socket-flow/pkg/postgres"
 
-	"github.com/Masterminds/squirrel"
+	sq "github.com/Masterminds/squirrel"
 )
-
-type UserRepo struct {
-	pgClient postgres.Client
-}
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, user *models.User) error
@@ -20,69 +17,81 @@ type UserRepository interface {
 	GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error)
 }
 
-func NewUserRepository(client postgres.Client) *UserRepo {
-	return &UserRepo{
-		pgClient: client,
-	}
+type UserRepositoryImpl struct {
+	pgClient     postgres.Client
+	QueryBuilder sq.StatementBuilderType
 }
 
 const users = "users"
 
 var columns = []string{"id", "phone_number", "email"}
 
-func (u *UserRepo) CreateUser(ctx context.Context, user *models.User) error {
-	query := u.pgClient.QueryBuilder.Insert(users).
-		Columns("phone_number", "password").
-		Values(user.PhoneNumber, user.Password)
+func NewUserRepository(client *postgres.PgClient) *UserRepositoryImpl {
+	return &UserRepositoryImpl{
+		pgClient:     client,
+		QueryBuilder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+	}
+}
 
-	sql, args, err := u.pgClient.ToSQL(query)
+func (u *UserRepositoryImpl) CreateUser(ctx context.Context, user *models.User) error {
+	sql, args, err := u.QueryBuilder.Insert(users).
+		Columns("phone_number", "password").
+		Values(user.PhoneNumber, user.Password).
+		ToSql()
 
 	if err != nil {
 		return fmt.Errorf("failed to build query %w", err)
 	}
 
-	if _, err := u.pgClient.Exec(ctx, sql, args...); err != nil {
+	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
+
+	_, err = u.pgClient.Exec(ctx, sql, args...)
+	if err != nil {
 		return fmt.Errorf("failed to execute query %w", err)
 	}
 
 	return nil
 }
 
-func (u *UserRepo) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
-	query := u.pgClient.QueryBuilder.
+func (u *UserRepositoryImpl) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
+	sql, args, err := u.QueryBuilder.
 		Select("EXISTS (SELECT 1)").
 		From(users).
-		Where(squirrel.Eq{"phone_number": phoneNumber})
-
-	sql, args, err := u.pgClient.ToSQL(query)
+		Where(sq.Eq{"phone_number": phoneNumber}).
+		ToSql()
 
 	if err != nil {
 		return false, fmt.Errorf("failed to build query %w", err)
 	}
 
+	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
+
 	var exists bool
-	if err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&exists); err != nil {
+
+	err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&exists)
+	if err != nil {
 		return false, fmt.Errorf("failed to execute query %w", err)
 	}
 
 	return exists, nil
 }
 
-func (u *UserRepo) GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
-	query := u.pgClient.QueryBuilder.Select(columns...).
+func (u *UserRepositoryImpl) GetUserByPhoneNumber(ctx context.Context, phoneNumber string) (*models.User, error) {
+	sql, args, err := u.QueryBuilder.Select(columns...).
 		From(users).
-		Where(squirrel.Eq{"phone_number": phoneNumber})
-
-	sql, args, err := u.pgClient.ToSQL(query)
+		Where(sq.Eq{"phone_number": phoneNumber}).
+		ToSql()
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to build query %w", err)
 	}
 
+	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
+
 	var user models.User
-	if err := u.pgClient.QueryRow(ctx, sql, args...).Scan(&user.Id,
-		&user.PhoneNumber,
-		&user.Email); err != nil {
+
+	err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&user.Id, &user.PhoneNumber, &user.Email)
+	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %w", err)
 	}
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"socket-flow/internal/models"
+	"socket-flow/internal/postgres"
 	"socket-flow/internal/repositories"
-	"socket-flow/pkg/postgres"
 )
 
 type UserServiceImpl struct {

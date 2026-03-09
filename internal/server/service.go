@@ -1,9 +1,9 @@
 package server
 
 import (
+	"socket-flow/internal/postgres"
 	"socket-flow/internal/services"
 	"socket-flow/internal/ws"
-	"socket-flow/pkg/postgres"
 )
 
 type Services struct {
