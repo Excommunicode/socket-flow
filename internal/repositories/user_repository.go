@@ -2,13 +2,13 @@ package repositories
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"socket-flow/internal/postgres"
 
 	"socket-flow/internal/models"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/pkg/errors"
 )
 
 type UserRepository interface {
@@ -40,14 +40,14 @@ func (u *UserRepositoryImpl) CreateUser(ctx context.Context, user *models.User) 
 		ToSql()
 
 	if err != nil {
-		return fmt.Errorf("failed to build query %w", err)
+		return errors.Wrap(err, "failed to build query")
 	}
 
 	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
 
 	_, err = u.pgClient.Exec(ctx, sql, args...)
 	if err != nil {
-		return fmt.Errorf("failed to execute query %w", err)
+		return errors.Wrap(err, "failed to execute query")
 	}
 
 	return nil
@@ -61,7 +61,7 @@ func (u *UserRepositoryImpl) ExistUserByPhoneNumber(ctx context.Context, phoneNu
 		ToSql()
 
 	if err != nil {
-		return false, fmt.Errorf("failed to build query %w", err)
+		return false, errors.Wrap(err, "failed to build query")
 	}
 
 	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
@@ -70,7 +70,7 @@ func (u *UserRepositoryImpl) ExistUserByPhoneNumber(ctx context.Context, phoneNu
 
 	err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("failed to execute query %w", err)
+		return false, errors.Wrap(err, "failed to execute query")
 	}
 
 	return exists, nil
@@ -83,7 +83,7 @@ func (u *UserRepositoryImpl) GetUserByPhoneNumber(ctx context.Context, phoneNumb
 		ToSql()
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to build query %w", err)
+		return nil, errors.Wrap(err, "failed to build query")
 	}
 
 	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
@@ -92,7 +92,7 @@ func (u *UserRepositoryImpl) GetUserByPhoneNumber(ctx context.Context, phoneNumb
 
 	err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&user.Id, &user.PhoneNumber, &user.Email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query %w", err)
+		return nil, errors.Wrap(err, "failed to execute query")
 	}
 
 	return &user, nil

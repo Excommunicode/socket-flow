@@ -26,9 +26,10 @@ type (
 	}
 
 	FindMessagesRequest struct {
-		From   uuid.UUID `form:"from" binding:"required"`
-		To     uuid.UUID `form:"to" binding:"required"`
-		Limit  uint      `form:"limit,default=20"`
-		Offset uint      `form:"offset,default=0"`
+		CurrentUserID uuid.UUID `form:"currentUserId" binding:"required"`
+		From          uuid.UUID `form:"from" binding:"required"`
+		To            uuid.UUID `form:"to" binding:"required"`
+		Limit         uint      `form:"limit,default=20"`
+		Offset        uint      `form:"offset,default=0"`
 	}
 )

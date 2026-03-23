@@ -3,7 +3,6 @@ package ws
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"socket-flow/internal/models"
 	"socket-flow/internal/services"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 )
 
 type Hub struct {
@@ -21,18 +21,25 @@ type Hub struct {
 	msgService services.MessageService
 
 	saveChan chan models.RequestMessage
+
+	notificationService services.NotificationService
 }
 
-func NewHub(msgService services.MessageService) *Hub {
+var errUserConnectionNotFound = errors.New("cannot find the connection with user")
+
+func NewHub(msgService services.MessageService, notifService services.NotificationService) *Hub {
 
 	h := &Hub{
 		clients:    make(map[uuid.UUID]*websocket.Conn),
 		msgService: msgService,
 		saveChan:   make(chan models.RequestMessage, 10000),
+
+		notificationService: notifService,
 	}
 	go h.runStorageWorker(context.Background())
 	return h
 }
+
 func (h *Hub) RegisterClient(conn *websocket.Conn, userId uuid.UUID) {
 	h.mu.Lock()
 	if oldConn, ok := h.clients[userId]; ok {
@@ -75,7 +82,25 @@ func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
 
 		msg.IsDelivered = err == nil
 
-		if err != nil && err.Error() != "cannot find the connection with user" {
+		if err != nil {
+			if err == errUserConnectionNotFound {
+				go func(toUser uuid.UUID, senderMsg models.RequestMessage) {
+					notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+
+					title := "Новое сообщение"
+					body := senderMsg.Msg
+
+					if err := h.notificationService.SendPushNotification(notifCtx, toUser, title, body); err != nil {
+						slog.Error("push notification failed", "to", toUser, "err", err)
+					}
+				}(msg.To, msg)
+			} else {
+				slog.Warn("failed to send message", "to", msg.To, "err", err)
+			}
+		}
+
+		if err != nil && err != errUserConnectionNotFound {
 			slog.Warn("failed to send message", "to", msg.To, "err", err)
 		}
 
@@ -93,13 +118,15 @@ func (h *Hub) SendToUser(userId uuid.UUID, data []byte) error {
 	h.mu.RUnlock()
 
 	if !ok {
-		return fmt.Errorf("cannot find the connection with user")
+		return errUserConnectionNotFound
 	}
 
 	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		slog.Error("write error", "err", err)
-		return err
+
+		return errors.Wrap(err, "write message to websocket")
 	}
+
 	return nil
 }
 
@@ -111,6 +138,7 @@ func (h *Hub) runStorageWorker(ctx context.Context) {
 			if err := h.msgService.CreateMessage(saveCtx, msg); err != nil {
 				slog.Error("async save message error", "err", err)
 			}
+
 			cancel()
 
 		case <-ctx.Done():

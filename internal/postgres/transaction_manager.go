@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 type txKey struct{}
@@ -35,7 +35,7 @@ func (t *TransactionManager) withTx(ctx context.Context,
 
 	tx, err := t.db.BeginTxx(ctx, opts)
 	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+		return errors.Wrap(err, "begin tx")
 	}
 
 	defer func() {
@@ -52,7 +52,7 @@ func (t *TransactionManager) withTx(ctx context.Context,
 		}
 
 		if cErr := tx.Commit(); cErr != nil {
-			err = fmt.Errorf("commit tx: %w", cErr)
+			err = errors.Wrap(cErr, "commit tx")
 		}
 	}()
 

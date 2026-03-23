@@ -12,8 +12,7 @@ import (
 
 	"socket-flow/internal/server"
 
-	_ "github.com/Excommunicode/logging"
-
+	"github.com/Excommunicode/logging"
 	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,6 +20,9 @@ import (
 
 func main() {
 	ctx := context.Background()
+
+	logging.Info("Hello world", ctx)
+
 	srv, err := server.NewServer(ctx)
 
 	if err != nil {
@@ -33,7 +35,7 @@ func main() {
 	go func() {
 		defer close(done)
 
-		err := srv.ListenAndServe()
+		err = srv.ListenAndServe()
 
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed to listen", "err", err)

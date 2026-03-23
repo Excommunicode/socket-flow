@@ -14,7 +14,7 @@ type (
 		Email       *string    `db:"email"`
 		PhoneNumber string     `db:"phone_number"`
 		Role        Role       `db:"role"`
-		Password    string     `db:"password"`
+		Password    string     `db:"password" json:"-"`
 		CreatedAt   time.Time  `db:"created_at"`
 		UpdateAt    *time.Time `db:"updated_at"`
 	}

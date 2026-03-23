@@ -23,7 +23,7 @@ func (u *UserHandler) GetUserByPhone(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	var req models.UserRequest
+	req := new(models.UserRequest)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(err)

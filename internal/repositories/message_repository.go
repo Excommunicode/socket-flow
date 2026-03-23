@@ -6,6 +6,7 @@ import (
 	"socket-flow/internal/config"
 	"socket-flow/internal/models"
 
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -37,7 +38,7 @@ func (m *MessageRepo) SaveMessage(ctx context.Context, msg models.Message) error
 	_, err := m.messageCollection.InsertOne(ctx, msg)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, "cannot insert the message")
 	}
 
 	return nil
@@ -64,7 +65,7 @@ func (m *MessageRepo) FindMessages(ctx context.Context, filter models.FindMessag
 
 	cursor, err := m.messageCollection.Find(ctx, filters, opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "find messages")
 	}
 
 	defer func() {
@@ -78,7 +79,7 @@ func (m *MessageRepo) FindMessages(ctx context.Context, filter models.FindMessag
 	for cursor.Next(ctx) {
 		var message models.Message
 		if err := cursor.Decode(&message); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "decode message")
 		}
 
 		result = append(result, message)
@@ -102,7 +103,7 @@ func (m *MessageRepo) MarkAsDeliveredMessages(ctx context.Context, messageIds []
 
 	_, err := m.messageCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "mark messages as delivered")
 	}
 
 	return nil

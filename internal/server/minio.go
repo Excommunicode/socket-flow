@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"socket-flow/internal/config"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/pkg/errors"
 )
 
 func initMinioS3Client(ctx context.Context, cfg config.MinioConfig) (*minio.Client, error) {
@@ -17,14 +17,14 @@ func initMinioS3Client(ctx context.Context, cfg config.MinioConfig) (*minio.Clie
 		Region: cfg.Region,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("minio.New: %w", err)
+		return nil, errors.Wrap(err, "minio.New")
 	}
 
 	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	if _, err := client.ListBuckets(checkCtx); err != nil {
-		return nil, fmt.Errorf("minio ping (ListBuckets): %w", err)
+		return nil, errors.Wrap(err, "minio ping (ListBuckets)")
 	}
 
 	return client, nil

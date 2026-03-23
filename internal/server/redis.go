@@ -2,10 +2,10 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"socket-flow/internal/config"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -20,7 +20,7 @@ func initRedis(cfg config.RedisConfig) (*redis.Client, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		return client, fmt.Errorf("failed to connect to redis: %+v", err)
+		return client, errors.Wrap(err, "failed to connect to redis")
 	}
 
 	return client, nil

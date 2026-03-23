@@ -1,4 +1,6 @@
-{
-  "dropIndexes": "message",
-  "index": "createdAt_1"
-}
+[
+  {
+    "dropIndexes": "messages",
+    "index": "from_1_to_1_createdAt_-1"
+  }
+]

@@ -2,8 +2,7 @@ package server
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	stdErrors "errors"
 	"log/slog"
 	"net/http"
 	"socket-flow/internal/postgres"
@@ -12,6 +11,7 @@ import (
 	"socket-flow/internal/config"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -19,7 +19,7 @@ import (
 func NewServer(ctx context.Context) (*http.Server, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "load config")
 	}
 
 	var (
@@ -30,38 +30,45 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 
 	defer func() {
 		if err != nil {
-			if closeErr := closeResources(ctx, db, mongoClient, redisClient); closeErr != nil {
-				slog.Error("failed to cleanup resources during server init failure", "err", closeErr)
+			err := closeResources(ctx, db, mongoClient, redisClient)
+			if err != nil {
+				slog.Error("failed to cleanup resources during server init failure", "err", err)
 			}
 		}
 	}()
 
-	db, err = initDB(cfg.Postgres)
+	db, err = initDB(ctx, cfg.Postgres)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "init postgres")
 	}
 
 	mongoClient, err = initMongoDB(ctx, cfg.Mongo)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "init mongo")
 	}
 
 	redisClient, err = initRedis(cfg.Redis)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "init redis")
 	}
 
-	_, err = initMinioS3Client(ctx, cfg.Minio)
+	err = runPgMigrations(cfg.Postgres)
+
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "pg migrations failed")
+	}
+
+	err = runMongoMigration(cfg.Mongo)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "mongo migrations failed")
 	}
 
 	transactor := postgres.NewTransactionManager(db)
-
 	upgrader := InitWebSocket(cfg.WebSocket)
 	pgClient := postgres.NewClient(db)
 	repositories := InitRepositories(pgClient, mongoClient, redisClient, cfg.Mongo)
-	services := initServices(transactor, repositories)
+	services := initServices(transactor, repositories, cfg)
 	handler := initHandler(services, upgrader)
 	routers := initRouters(handler)
 
@@ -74,22 +81,12 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	err = runPgMigrations(cfg.Postgres)
-	if err != nil {
-		return nil, fmt.Errorf("pg migrations failed: %+v", err)
-	}
-
-	err = runMongoMigration(cfg.Mongo)
-	if err != nil {
-		return nil, fmt.Errorf("mongo migrations failed: %+v", err)
-	}
-
 	srv.RegisterOnShutdown(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := closeResources(ctx, db, mongoClient, redisClient); err != nil {
-			slog.Error("error shutting down resources", "err", err)
+		if closeErr := closeResources(shutdownCtx, db, mongoClient, redisClient); closeErr != nil {
+			slog.Error("error shutting down resources", "err", closeErr)
 		}
 	})
 
@@ -101,20 +98,20 @@ func closeResources(ctx context.Context, db *sqlx.DB, mongoClient *mongo.Client,
 
 	if db != nil {
 		if err := db.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("close db: %w", err))
+			errs = append(errs, errors.Wrap(err, "close db"))
 		}
 	}
 
 	if mongoClient != nil {
 		if err := mongoClient.Disconnect(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("disconnect mongo: %w", err))
+			errs = append(errs, errors.Wrap(err, "disconnect mongo"))
 		}
 	}
 
 	if redisClient != nil {
 		if err := redisClient.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("close redis: %w", err))
+			errs = append(errs, errors.Wrap(err, "close redis"))
 		}
 	}
-	return errors.Join(errs...)
+	return stdErrors.Join(errs...)
 }

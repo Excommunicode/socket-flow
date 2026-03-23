@@ -22,7 +22,7 @@ func NewAuthHandler(service services.AuthService) *AuthHandler {
 
 func (h *AuthHandler) HandleRegister(c *gin.Context) {
 	ctx := c.Request.Context()
-	var req models.RegisterUser
+	req := new(models.RegisterUser)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(err)
@@ -30,7 +30,7 @@ func (h *AuthHandler) HandleRegister(c *gin.Context) {
 		return
 	}
 
-	accessToken, refreshToken, phoneNumber, err := h.service.RegisterUser(ctx, &req)
+	accessToken, refreshToken, phoneNumber, err := h.service.RegisterUser(ctx, req)
 	if err != nil {
 		_ = c.Error(err)
 		errors.WriteError(c, 0, err)
@@ -56,7 +56,8 @@ func (h *AuthHandler) HandleRegister(c *gin.Context) {
 
 func (h *AuthHandler) HandleLogin(c *gin.Context) {
 	ctx := c.Request.Context()
-	var req models.LoginUser
+
+	req := new(models.RegisterUser)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		_ = c.Error(err)

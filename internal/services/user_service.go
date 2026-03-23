@@ -6,6 +6,8 @@ import (
 	"socket-flow/internal/models"
 	"socket-flow/internal/postgres"
 	"socket-flow/internal/repositories"
+
+	"github.com/pkg/errors"
 )
 
 type UserServiceImpl struct {
@@ -26,7 +28,7 @@ func NewUserService(transaction postgres.Transactor, repo repositories.UserRepos
 
 func (u UserServiceImpl) GetUserByPhone(ctx context.Context, phone string) (*models.UserResponse, error) {
 
-	var result *models.User
+	result := new(models.User)
 
 	err := u.transaction.WithinROTransaction(ctx, func(ctx context.Context) error {
 		var err error
@@ -38,7 +40,7 @@ func (u UserServiceImpl) GetUserByPhone(ctx context.Context, phone string) (*mod
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get user by phone", "phone", phone, "error", err)
 
-		return nil, err
+		return nil, errors.Wrap(err, "get user by phone")
 	}
 
 	return &models.UserResponse{

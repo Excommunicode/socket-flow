@@ -7,6 +7,7 @@ import (
 	"socket-flow/internal/repositories"
 	"time"
 
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -37,34 +38,42 @@ func (m *messageService) CreateMessage(ctx context.Context, msg models.RequestMe
 
 	if err := m.MessageRepository.SaveMessage(ctx, doc); err != nil {
 		slog.ErrorContext(ctx, "cannot save the message", "err", err)
-		return err
+
+		return errors.Wrap(err, "save message")
 	}
 
 	return nil
 }
 
-func (m *messageService) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error) {
-
+func (m *messageService) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message,
+	error) {
 	messages, err := m.MessageRepository.FindMessages(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "cannot found messages", "err", err)
-		return nil, err
+
+		return nil, errors.Wrap(err, "find messages")
 	}
+
 	if len(messages) == 0 {
 		slog.DebugContext(ctx, "found result is empty")
 		return nil, nil
 	}
 
 	messageIds := make([]bson.ObjectID, 0, len(messages))
+
 	for _, message := range messages {
-		if !message.IsDelivered {
+		if !message.IsDelivered && message.To == filter.CurrentUserID {
 			messageIds = append(messageIds, message.ID)
 		}
 	}
 
-	if err := m.MessageRepository.MarkAsDeliveredMessages(ctx, messageIds); err != nil {
-		slog.ErrorContext(ctx, "cannot mark delivered messages", "err", err)
-		return nil, err
+	if len(messageIds) > 0 {
+
+		if err := m.MessageRepository.MarkAsDeliveredMessages(ctx, messageIds); err != nil {
+			slog.ErrorContext(ctx, "cannot mark delivered messages", "err", err)
+
+			return nil, errors.Wrap(err, "mark delivered messages")
+		}
 	}
 
 	return messages, nil

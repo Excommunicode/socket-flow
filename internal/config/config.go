@@ -1,63 +1,95 @@
 package config
 
-import "github.com/ilyakaznacheev/cleanenv"
+import (
+	"fmt"
+	"net"
+	"net/url"
+
+	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/pkg/errors"
+)
 
 type (
 	ServerConfig struct {
-		Port    string `env:"PORT" env-default:"8080"`
+		Port    string `env:"PORT"     env-default:"8080"`
 		Secret  string `env:"SECRET"`
 		BaseURL string `env:"BASE_URL" env-default:"http://localhost:8080"`
-		Domain  string `env:"DOMAIN" env-default:"localhost"`
+		Domain  string `env:"DOMAIN"   env-default:"localhost"`
 	}
 
 	PGConfig struct {
-		DSN string `env:"DSN" env-default:"postgres://test:test@localhost:5432/postgres?sslmode=disable"`
+		Host     string `env:"HOST"     env-default:"localhost"`
+		Port     string `env:"PORT"     env-default:"5432"`
+		User     string `env:"USER"     env-default:"test"`
+		Password string `env:"PASSWORD" env-default:"test"`
+		Database string `env:"DB"       env-default:"postgres"`
+		SSLMode  string `env:"SSLMODE"  env-default:"disable"`
 	}
 
 	MongoConfig struct {
-		URI        string `env:"MONGO_URI" env-default:"mongodb://localhost:27017"`
-		Database   string `env:"MONGO_DB" env-default:"socketflow"`
+		URI        string `env:"MONGO_URI"        env-default:"mongodb://localhost:27017"`
+		Database   string `env:"MONGO_DB"         env-default:"socketflow"`
 		Collection string `env:"MONGO_COLLECTION" env-default:"messages"`
 	}
+
 	RedisConfig struct {
 		Addr     string `env:"REDIS_ADDR" env-default:"localhost:6379"`
-		Password string `env:"REDIS_PASSWORD" env-default:""`
-		DB       int    `env:"REDIS_DB" env-default:"0"`
+		Password string `env:"PASSWORD"   env-default:"test"           json:"-"`
+		DB       int    `env:"REDIS_DB"   env-default:"0"`
 	}
 
 	WebSocketConfig struct {
-		ReadBufferSize    int    `env:"WS_READ_BUFFER_SIZE" env-default:"1024"`
-		WriteBufferSize   int    `env:"WS_WRITE_BUFFER_SIZE" env-default:"1024"`
-		AllowedOrigins    string `env:"WS_ALLOWED_ORIGINS" env-default:""`
+		ReadBufferSize    int    `env:"WS_READ_BUFFER_SIZE"   env-default:"1024"`
+		WriteBufferSize   int    `env:"WS_WRITE_BUFFER_SIZE"  env-default:"1024"`
+		AllowedOrigins    string `env:"WS_ALLOWED_ORIGINS"    env-default:""`
 		EnableCompression bool   `env:"WS_ENABLE_COMPRESSION" env-default:"true"`
 	}
 
 	MinioConfig struct {
-		Endpoint        string `env:"MINIO_ENDPOINT" env-default:"localhost:9000"` // host:port
+		Endpoint        string `env:"MINIO_ENDPOINT"   env-default:"localhost:9000"`
 		AccessKeyID     string `env:"MINIO_ACCESS_KEY" env-default:"minioadmin"`
 		SecretAccessKey string `env:"MINIO_SECRET_KEY" env-default:"minioadmin"`
-		Bucket          string `env:"MINIO_BUCKET" env-default:"uploads"`
-		Region          string `env:"MINIO_REGION" env-default:""`
-		UseSSL          bool   `env:"MINIO_USE_SSL" env-default:"false"`
+		Bucket          string `env:"MINIO_BUCKET"     env-default:"uploads"`
+		Region          string `env:"MINIO_REGION"     env-default:""`
+		UseSSL          bool   `env:"MINIO_USE_SSL"    env-default:"false"`
+	}
+
+	FCMConfig struct {
+		ProjectID   string `env:"FCM_PROJECT_ID"   env-default:""`
+		AccessToken string `env:"FCM_ACCESS_TOKEN" env-default:""`
 	}
 
 	AppConfig struct {
-		Postgres  PGConfig
-		Mongo     MongoConfig
-		Redis     RedisConfig
-		Server    ServerConfig
-		Minio     MinioConfig
-		WebSocket WebSocketConfig
+		Postgres  PGConfig        `env-prefix:"PG_"`
+		Redis     RedisConfig     `env-prefix:"REDIS_"`
+		Mongo     MongoConfig     `env-prefix:"MONGO_"`
+		Server    ServerConfig    `env-prefix:"SERVER_"`
+		Minio     MinioConfig     `env-prefix:"MINIO_"`
+		WebSocket WebSocketConfig `env-prefix:"WS_"`
+		FCM       FCMConfig       `env-prefix:"FCM_"`
 	}
 )
 
-func LoadConfig() (*AppConfig, error) {
-	var config AppConfig
+func (c PGConfig) DSN() string {
+	hostPort := net.JoinHostPort(c.Host, c.Port)
 
-	err := cleanenv.ReadEnv(&config)
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s/%s?sslmode=%s",
+		url.QueryEscape(c.User),
+		url.QueryEscape(c.Password),
+		hostPort,
+		c.Database,
+		c.SSLMode,
+	)
+}
+
+func LoadConfig() (*AppConfig, error) {
+	config := new(AppConfig)
+
+	err := cleanenv.ReadEnv(config)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to read environment config")
 	}
 
-	return &config, nil
+	return config, nil
 }

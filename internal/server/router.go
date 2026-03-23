@@ -39,5 +39,10 @@ func initRouters(handler *Handler) *gin.Engine {
 		userRouter.POST("", handler.UserHandler.GetUserByPhone)
 	}
 
+	deviceTokenRouter := api.Group("/device-tokens")
+	{
+		deviceTokenRouter.POST("", handler.DeviceTokenHandler.RegisterDeviceToken)
+	}
+
 	return router
 }

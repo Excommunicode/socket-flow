@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 type PgClient struct {
@@ -22,7 +22,7 @@ func (c *PgClient) Exec(ctx context.Context, query string, args ...any) (sql.Res
 	if tx, ok := TxFromContext(ctx); ok && tx != nil {
 		res, err := tx.ExecContext(ctx, query, args...)
 		if err != nil {
-			return nil, fmt.Errorf("exec query in transaction: %w", err)
+			return nil, errors.Wrap(err, "exec query in transaction")
 		}
 
 		return res, nil
@@ -30,7 +30,7 @@ func (c *PgClient) Exec(ctx context.Context, query string, args ...any) (sql.Res
 
 	res, err := c.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("exec query: %w", err)
+		return nil, errors.Wrap(err, "exec query")
 	}
 
 	return res, nil
@@ -40,7 +40,7 @@ func (c *PgClient) Query(ctx context.Context, query string, args ...any) (*sql.R
 	if tx, ok := TxFromContext(ctx); ok && tx != nil {
 		rows, err := tx.QueryContext(ctx, query, args...)
 		if err != nil {
-			return nil, fmt.Errorf("query rows in transaction: %w", err)
+			return nil, errors.Wrap(err, "query rows in transaction")
 		}
 
 		return rows, nil
@@ -48,7 +48,7 @@ func (c *PgClient) Query(ctx context.Context, query string, args ...any) (*sql.R
 
 	rows, err := c.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query rows: %w", err)
+		return nil, errors.Wrap(err, "query rows")
 	}
 
 	return rows, nil
@@ -66,7 +66,7 @@ func (c *PgClient) Select(ctx context.Context, dest any, query string, args ...a
 	if tx, ok := TxFromContext(ctx); ok && tx != nil {
 		err := tx.SelectContext(ctx, dest, query, args...)
 		if err != nil {
-			return fmt.Errorf("select in transaction: %w", err)
+			return errors.Wrap(err, "select in transaction")
 		}
 
 		return nil
@@ -74,7 +74,7 @@ func (c *PgClient) Select(ctx context.Context, dest any, query string, args ...a
 
 	err := c.db.SelectContext(ctx, dest, query, args...)
 	if err != nil {
-		return fmt.Errorf("select: %w", err)
+		return errors.Wrap(err, "select")
 	}
 
 	return nil

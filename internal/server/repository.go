@@ -10,9 +10,10 @@ import (
 )
 
 type Repositories struct {
-	UserRepository    repositories.UserRepository
-	MessageRepository repositories.MessageRepository
-	TokenRepository   repositories.TokenRepository
+	UserRepository        repositories.UserRepository
+	MessageRepository     repositories.MessageRepository
+	TokenRepository       repositories.TokenRepository
+	DeviceTokenRepository repositories.DeviceTokenRepository
 }
 
 func InitRepositories(db *postgres.PgClient, mongoClient *mongo.Client, redisClient *redis.Client,
@@ -22,9 +23,12 @@ func InitRepositories(db *postgres.PgClient, mongoClient *mongo.Client, redisCli
 	messageRepository := repositories.NewMessageRepository(mongoClient, cfg)
 	tokenRepository := repositories.NewTokenRepository(redisClient)
 
+	deviceTokenRepository := repositories.NewDeviceTokenRepository(db)
+
 	return &Repositories{
-		UserRepository:    userRepository,
-		MessageRepository: messageRepository,
-		TokenRepository:   tokenRepository,
+		UserRepository:        userRepository,
+		MessageRepository:     messageRepository,
+		TokenRepository:       tokenRepository,
+		DeviceTokenRepository: deviceTokenRepository,
 	}
 }

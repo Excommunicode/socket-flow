@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
-	"errors"
+	stdErrors "errors"
 	"log/slog"
 	"socket-flow/internal/postgres"
 
@@ -13,6 +13,7 @@ import (
 	"socket-flow/internal/repositories"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 )
 
 type authService struct {
@@ -53,7 +54,7 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 		return err
 	}); err != nil {
 		log.ErrorContext(ctx, "database check failed", "err", err)
-		return "", "", "", err
+		return "", "", "", errors.Wrap(err, "check existing user")
 	}
 
 	if existingUser {
@@ -66,7 +67,7 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 	if err != nil {
 		log.ErrorContext(ctx, "password hashing failed", "err", err)
 
-		return "", "", "", err
+		return "", "", "", errors.Wrap(err, "hash password")
 	}
 
 	user := &models.User{
@@ -76,18 +77,18 @@ func (s *authService) RegisterUser(ctx context.Context, req *models.RegisterUser
 
 	if err := s.transaction.WithinRWTransaction(ctx, func(ctx context.Context) error {
 		if err := s.repo.CreateUser(ctx, user); err != nil {
-			return err
+			return errors.Wrap(err, "create user")
 		}
 		return nil
 	}); err != nil {
 		log.ErrorContext(ctx, "failed to save user to database", "err", err)
-		return "", "", "", err
+		return "", "", "", errors.Wrap(err, "save user")
 	}
 
 	access, refresh, err := s.generateAndStoreTokens(user.Id, user.Role)
 	if err != nil {
 		log.ErrorContext(ctx, "token generation failed", "err", err, "user_id", user.Id)
-		return "", "", "", err
+		return "", "", "", errors.Wrap(err, "generate and store tokens")
 	}
 
 	log.InfoContext(ctx, "user registered successfully", "user_id", user.Id)
@@ -103,7 +104,7 @@ func (s *authService) LoginUser(ctx context.Context, phoneNumber, password strin
 
 	user, err := s.repo.GetUserByPhoneNumber(ctx, phoneNumber)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if stdErrors.Is(err, sql.ErrNoRows) {
 			log.WarnContext(ctx, "login failed: user not found")
 			return "", "", "", errs.ErrUserNotFound
 		}
@@ -125,7 +126,7 @@ func (s *authService) LoginUser(ctx context.Context, phoneNumber, password strin
 	access, refresh, err := s.generateAndStoreTokens(user.Id, user.Role)
 	if err != nil {
 		log.ErrorContext(ctx, "token generation failed", "err", err, "user_id", user.Id)
-		return "", "", "", err
+		return "", "", "", errors.Wrap(err, "generate and store tokens")
 	}
 
 	log.InfoContext(ctx, "user logged in successfully", "user_id", user.Id)
@@ -172,7 +173,7 @@ func (s *authService) RefreshTokens(refreshToken string) (
 		userID, models.ParseRole(claims.Role),
 	)
 	if err != nil {
-		return "", "", err
+		return "", "", errors.Wrap(err, "generate and store tokens")
 	}
 
 	if err := s.tokenRepository.SaveJWTokens(

@@ -21,14 +21,16 @@ func NewMessageHandler(messageService services.MessageService) *MessageHandler {
 
 func (m *MessageHandler) FindMessage(c *gin.Context) {
 	ctx := c.Request.Context()
-	body := models.FindMessagesRequest{}
+	body := new(models.FindMessagesRequest)
 
-	if err := c.ShouldBindJSON(&body); err != nil {
+	err := c.ShouldBindJSON(body)
+
+	if err != nil {
 		_ = c.Error(err)
 		errors.WriteValidationError(c, err.Error())
 	}
 
-	result, err := m.MessageService.FindMessages(ctx, body)
+	result, err := m.MessageService.FindMessages(ctx, *body)
 	if err != nil {
 		_ = c.Error(err)
 		errors.WriteError(c, 0, err)

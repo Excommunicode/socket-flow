@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"socket-flow/internal/config"
-	"socket-flow/internal/errors"
+	appErrors "socket-flow/internal/errors"
 
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -17,12 +17,12 @@ func initMongoDB(ctx context.Context, cfg config.MongoConfig) (*mongo.Client, er
 	client, err := mongo.Connect(clientOptions)
 
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errors.ErrMongoPingConnection, err)
+		return nil, errors.Wrap(err, appErrors.ErrMongoPingConnection.Error())
 	}
 
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		return client, fmt.Errorf("%w: %w", errors.ErrMongoPingConnection, err)
+		return client, errors.Wrap(err, appErrors.ErrMongoPingConnection.Error())
 	}
 
 	slog.InfoContext(ctx, "mongodb connected", "uri", cfg.URI, "db", cfg.Database, "collection", cfg.Collection)

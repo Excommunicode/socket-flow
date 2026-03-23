@@ -1,21 +1,23 @@
 package server
 
 import (
-	"fmt"
+	"context"
 	"socket-flow/internal/config"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
-func initDB(pgConfig config.PGConfig) (*sqlx.DB, error) {
-
-	connect, err := sqlx.Open("pgx", pgConfig.DSN)
+func initDB(ctx context.Context, pgConfig config.PGConfig) (*sqlx.DB, error) {
+	connect, err := sqlx.Open("pgx", pgConfig.DSN())
 	if err != nil {
-		return connect, fmt.Errorf("open db: %+v", err)
+		return connect, errors.Wrap(err, "open db")
 	}
 
-	if err := connect.DB.Ping(); err != nil {
-		return connect, fmt.Errorf("ping db: %v", err)
+	err = connect.PingContext(ctx)
+
+	if err != nil {
+		return connect, errors.Wrap(err, "ping db")
 	}
 
 	return connect, nil

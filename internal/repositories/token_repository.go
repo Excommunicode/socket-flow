@@ -2,12 +2,13 @@ package repositories
 
 import (
 	"context"
-	"errors"
+	stdErrors "errors"
 	"fmt"
 	"socket-flow/internal/jwt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -30,25 +31,25 @@ func NewTokenRepository(client *redis.Client) *TokenRepositoryImpl {
 func (ts *TokenRepositoryImpl) SaveJWToken(userID uuid.UUID, token string) error {
 	claims, err := jwt.ParseJWT(token)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "parse jwt")
 	}
 	duration := time.Until(claims.ExpiresAt.Time)
 	if duration <= 0 {
-		return errors.New("token has already expired")
+		return stdErrors.New("token has already expired")
 	}
 	key := fmt.Sprintf("user:%d:jwt:%s", userID, claims.ID)
-	return ts.redisClient.Set(context.Background(), key, token, duration).Err()
+	return errors.Wrap(ts.redisClient.Set(context.Background(), key, token, duration).Err(), "save jwt to redis")
 }
 
 func (ts *TokenRepositoryImpl) SaveJWTokens(
 	userID uuid.UUID, accessToken, refreshToken string,
 ) error {
 	if err := ts.SaveJWToken(userID, accessToken); err != nil {
-		return err
+		return errors.Wrap(err, "save access token")
 	}
 
 	if err := ts.SaveJWToken(userID, refreshToken); err != nil {
-		return err
+		return errors.Wrap(err, "save refresh token")
 	}
 
 	return nil
@@ -57,22 +58,22 @@ func (ts *TokenRepositoryImpl) SaveJWTokens(
 func (ts *TokenRepositoryImpl) DeleteJWToken(userID uuid.UUID, token string) error {
 	claims, err := jwt.ParseJWT(token)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "parse jwt")
 	}
 
 	key := fmt.Sprintf("user:%d:jwt:%s", userID, claims.ID)
 
-	return ts.redisClient.Del(context.Background(), key).Err()
+	return errors.Wrap(ts.redisClient.Del(context.Background(), key).Err(), "delete jwt from redis")
 }
 
 func (ts *TokenRepositoryImpl) DeleteJWTokens(
 	userID uuid.UUID, accessToken, refreshToken string,
 ) error {
 	if err := ts.DeleteJWToken(userID, accessToken); err != nil {
-		return err
+		return errors.Wrap(err, "delete access token")
 	}
 	if err := ts.DeleteJWToken(userID, refreshToken); err != nil {
-		return err
+		return errors.Wrap(err, "delete refresh token")
 	}
 	return nil
 }
@@ -80,15 +81,15 @@ func (ts *TokenRepositoryImpl) DeleteJWTokens(
 func (ts *TokenRepositoryImpl) ValidateJWToken(userID uuid.UUID, token string) (bool, error) {
 	claims, err := jwt.ParseJWT(token)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "parse jwt")
 	}
 	key := fmt.Sprintf("user:%d:jwt:%s", userID, claims.ID)
 	storedToken, err := ts.redisClient.Get(context.Background(), key).Result()
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
+		if stdErrors.Is(err, redis.Nil) {
 			return false, nil
 		}
-		return false, err
+		return false, errors.Wrap(err, "get jwt from redis")
 	}
 	if storedToken == token {
 		return true, nil
