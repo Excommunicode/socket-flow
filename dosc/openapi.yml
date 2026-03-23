@@ -1,396 +1,403 @@
-openapi: 3.1.0
-
+openapi: 3.0.3
 info:
   title: Socket Flow API
-  description: API for authentication and WebSocket connections (chat).
   version: 1.0.0
-  contact:
-    name: Socket Flow
-
-servers:
-  - url: http://localhost:8080
-    description: Local server
-  - url: https://api.example.com
-    description: Production (example)
+  description: API for authentication, users, messages, device tokens and websocket connection.
 
 tags:
   - name: auth
-    description: Registration and login
-  - name: ws
-    description: WebSocket connection
-  - name: messages
-    description: Message search and retrieval
+    description: User authentication and session management.
   - name: users
-    description: User information retrieval
+    description: User lookup endpoints.
+  - name: messages
+    description: Message search endpoints.
+  - name: device-tokens
+    description: Device token registration endpoints.
+  - name: websocket
+    description: Realtime websocket connection endpoint.
 
 paths:
-  /api/auth/register:
-    post:
-      tags:
-        - auth
-      summary: Register user
-      description: Creates a new user by phone number and password. Returns tokens and sets cookies.
-      operationId: register
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterUser'
-      responses:
-        '201':
-          description: User successfully registered
-          headers:
-            Set-Cookie:
-              description: access_token and refresh_token in httpOnly cookies
-              schema:
-                type: string
-                example: "access_token=eyJ...; Path=/; HttpOnly; SameSite=Lax"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Validation error or user already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: User with this phone number already registered
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /api/auth/login:
-    post:
-      tags:
-        - auth
-      summary: Login user
-      description: Authenticate by phone number and password. Returns tokens and sets cookies.
-      operationId: login
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginUser'
-      responses:
-        '200':
-          description: Login successful
-          headers:
-            Set-Cookie:
-              description: access_token and refresh_token in httpOnly cookies
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Invalid credentials or user not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /ws:
     get:
-      tags:
-        - ws
-      summary: WebSocket connection
-      description: |
-        Establishes a WebSocket connection for chat. Expects WebSocket protocol upgrade (client typically uses GET with Upgrade header).
-        
-        **Connection Flow:**
-        1. First, find the user by phone number using POST `/api/users` endpoint, passing the phone number in the request body
-        2. Extract the `id` field from the response
-        3. Connect to this WebSocket endpoint by passing the `userId` as a query parameter
-        
-        **Example:**
-        - POST `/api/users` with `{"username": "+79001234567"}` returns `{"id": "550e8400-e29b-41d4-a716-446655440000", ...}`
-        - Connect to WebSocket: `ws://localhost:8080/ws?userId=550e8400-e29b-41d4-a716-446655440000`
-      operationId: wsConnect
+      tags: [websocket]
+      summary: Open websocket connection
+      description: Upgrades HTTP connection to WebSocket and registers a client by `userId` query param.
       parameters:
         - name: userId
           in: query
           required: true
-          description: User ID obtained from POST `/api/users` endpoint
+          description: User UUID used to bind socket connection to a user.
           schema:
             type: string
             format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
       responses:
-        '101':
-          description: Switching Protocols — connection upgraded to WebSocket
-        '400':
-          description: Bad request (e.g. not a WebSocket upgrade, missing or invalid userId parameter)
-        '401':
-          description: User not found or invalid userId
+        "101":
+          description: WebSocket protocol upgraded successfully.
+        "400":
+          description: Invalid or missing userId.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Valid userId is required
 
-  /api/messages:
+  /api/auth/register:
     post:
-      tags:
-        - messages
-      summary: Find messages
-      description: Search for messages between two users (identified by phone numbers) with pagination support.
-      operationId: findMessage
+      tags: [auth]
+      summary: Register user
+      description: Creates a new user and returns auth tokens. Also sets auth cookies.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FindMessagesRequest'
+              $ref: "#/components/schemas/RegisterUserRequest"
       responses:
-        '200':
-          description: Messages found successfully
+        "201":
+          description: User registered and tokens issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: User already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Login user
+      description: Authenticates user by phone and password, returns tokens and sets auth cookies.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUserRequest"
+      responses:
+        "200":
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokensResponse"
+        "400":
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout user
+      description: Invalidates current access/refresh token pair from cookies and clears auth cookies.
+      responses:
+        "200":
+          description: Logout successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: logout successfull
+        "401":
+          description: Missing/invalid cookies or invalid session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
+        "500":
+          description: Failed to clear cookies.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
+
+  /api/auth/refresh:
+    post:
+      tags: [auth]
+      summary: Refresh tokens
+      description: Issues a new access and refresh token using `refresh_token` cookie, and resets auth cookies.
+      responses:
+        "201":
+          description: Tokens refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshTokensResponse"
+        "401":
+          description: Missing/invalid refresh token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
+        "500":
+          description: Failed to set auth cookies.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
+
+  /api/messages:
+    post:
+      tags: [messages]
+      summary: Find messages
+      description: Returns paginated messages between two users for the requested current user context.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FindMessagesRequest"
+      responses:
+        "200":
+          description: Messages found.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Message'
-              example:
-                - msg: "Hello!"
-                  from: "+79001234567"
-                  to: "+79009876543"
-                  modified: false
-                  createdAt: "2025-02-07T10:30:00Z"
-                - msg: "How are you?"
-                  from: "+79001234567"
-                  to: "+79009876543"
-                  modified: false
-                  createdAt: "2025-02-07T10:31:00Z"
-        '400':
-          description: Validation error (missing required fields or invalid format)
+                  $ref: "#/components/schemas/Message"
+        "400":
+          description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/users:
     post:
-      tags:
-        - users
-      summary: Get user by phone number
-      description: |
-        Retrieves user information by phone number. The username field in the request should contain the phone number.
-        
-        **Usage for WebSocket connection:**
-        This endpoint is required before establishing a WebSocket connection. Use the returned `id` field as the `userId` query parameter when connecting to `/ws`.
-      operationId: getUserByPhone
+      tags: [users]
+      summary: Get user by phone
+      description: Finds user by phone number.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRequest'
+              $ref: "#/components/schemas/UserRequest"
       responses:
-        '200':
-          description: User found successfully
+        "200":
+          description: User found.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
-              example:
-                id: "550e8400-e29b-41d4-a716-446655440000"
-                username: "john_doe"
-                email: "john@example.com"
-        '400':
-          description: Validation error (invalid request format)
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: User not found
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/device-tokens:
+    post:
+      tags: [device-tokens]
+      summary: Register device token
+      description: Saves or updates push notification token for a user and platform.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDeviceTokenRequest"
+      responses:
+        "204":
+          description: Device token registered.
+        "400":
+          description: Validation error.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
-    RegisterUser:
+    RegisterUserRequest:
       type: object
-      required:
-        - phoneNumber
-        - Password
+      required: [phoneNumber, Password]
       properties:
         phoneNumber:
           type: string
-          description: User phone number
-          example: "+79001234567"
+          example: "+77001234567"
         Password:
           type: string
           format: password
-          description: Password (matches field name in code)
-          minLength: 1
+          example: "strong-password"
 
-    LoginUser:
-      type: object
-      required:
-        - phone_number
-        - password
-      properties:
-        phone_number:
-          type: string
-          description: Phone number
-          example: "+79001234567"
-        password:
-          type: string
-          format: password
-          description: User password
-
-    AuthResponse:
+    AuthTokensResponse:
       type: object
       properties:
         access_token:
           type: string
-          description: JWT access token
         refresh_token:
           type: string
-          description: JWT refresh token
         phone_number:
           type: string
-          description: User phone number
+
+    RefreshTokensResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+
+    FindMessagesRequest:
+      type: object
+      required: [currentUserId, from, to]
+      properties:
+        currentUserId:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: uuid
+        to:
+          type: string
+          format: uuid
+        limit:
+          type: integer
+          minimum: 0
+          default: 20
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Mongo object id string.
+        msg:
+          type: string
+        from:
+          type: string
+          format: uuid
+        to:
+          type: string
+          format: uuid
+        isDelivered:
+          type: boolean
+        modified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    UserRequest:
+      type: object
+      required: [phoneNumber]
+      properties:
+        phoneNumber:
+          type: string
+          example: "+77001234567"
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        role:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RegisterDeviceTokenRequest:
+      type: object
+      required: [userId, token, platform]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        token:
+          type: string
+        platform:
+          type: string
+          enum: [android, ios, web]
 
     ErrorResponse:
       type: object
       properties:
         code:
           type: string
-          description: Error code (e.g. VALIDATION_ERROR, USER_EXISTS, INVALID_CREDENTIALS)
         message:
           type: string
-          description: Short error description
         cause:
           type: string
-          description: Cause of the error
         fix:
           type: string
-          description: Suggestion to fix the issue
         timestamp:
           type: string
           format: date-time
-          description: Error time (RFC3339)
-      example:
-        code: VALIDATION_ERROR
-        message:" Data validation error: invalid format"
-        cause: Submitted data does not match the expected format or rules.
-        fix: Check the request body and correct fields according to API documentation.
-        timestamp: "2025-02-04T12:00:00Z"
 
-    Message:
-      type: object
-      description: Chat message model
-      properties:
-        msg:
-          type: string
-          description: Message content
-          example: "Hello!"
-        from:
-          type: string
-          description: Sender phone number
-          example: "+79001234567"
-        to:
-          type: string
-          description: Receiver phone number
-          example: "+79009876543"
-        modified:
-          type: boolean
-          description: Whether the message was modified
-          example: false
-        createdAt:
-          type: string
-          format: date-time
-          description: Message creation timestamp
-          example: "2025-02-07T10:30:00Z"
-
-    FindMessagesRequest:
-      type: object
-      required:
-        - from
-        - to
-      properties:
-        from:
-          type: string
-          description: Sender phone number
-          example: "+79001234567"
-        to:
-          type: string
-          description: Receiver phone number
-          example: "+79009876543"
-        limit:
-          type: integer
-          format: uint
-          description: Maximum number of messages to return
-          default: 20
-          minimum: 1
-          example: 20
-        offset:
-          type: integer
-          format: uint
-          description: Number of messages to skip for pagination
-          default: 0
-          minimum: 0
-          example: 0
-
-    UserRequest:
-      type: object
-      required:
-        - username
-      properties:
-        username:
-          type: string
-          description: Phone number to search for user (field name is username but value should be phone number)
-          example: "+79001234567"
-
-    UserResponse:
+    SimpleError:
       type: object
       properties:
-        id:
+        error:
           type: string
-          format: uuid
-          description: User unique identifier
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        username:
-          type: string
-          description: User username
-          example: "john_doe"
-        email:
-          type: string
-          format: email
-          description: User email address
-          example: "john@example.com"

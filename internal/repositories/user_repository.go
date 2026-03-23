@@ -54,21 +54,13 @@ func (u *UserRepositoryImpl) CreateUser(ctx context.Context, user *models.User) 
 }
 
 func (u *UserRepositoryImpl) ExistUserByPhoneNumber(ctx context.Context, phoneNumber string) (bool, error) {
-	sql, args, err := u.QueryBuilder.
-		Select("EXISTS (SELECT 1)").
-		From(users).
-		Where(sq.Eq{"phone_number": phoneNumber}).
-		ToSql()
+	query := `SELECT EXISTS (SELECT 1 FROM users WHERE phone_number = $1)`
 
-	if err != nil {
-		return false, errors.Wrap(err, "failed to build query")
-	}
-
-	slog.DebugContext(ctx, "query: ", "query", sql, "args:", "args", args)
+	slog.DebugContext(ctx, "query: ", "query", query, "args", phoneNumber)
 
 	var exists bool
 
-	err = u.pgClient.QueryRow(ctx, sql, args...).Scan(&exists)
+	err := u.pgClient.QueryRow(ctx, query, phoneNumber).Scan(&exists)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to execute query")
 	}

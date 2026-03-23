@@ -59,6 +59,12 @@ type (
 		AccessToken string `env:"FCM_ACCESS_TOKEN" env-default:""`
 	}
 
+	SchedulerConfig struct {
+		CleanupCron string `env:"cleanupCron" env-default:"0 0 * * *"`
+		TTL         string `env:"ttl"         env-default:"1m"`
+		Timezone    string `env:"timezone"    env-default:"UTC"`
+	}
+
 	AppConfig struct {
 		Postgres  PGConfig        `env-prefix:"PG_"`
 		Redis     RedisConfig     `env-prefix:"REDIS_"`
@@ -67,6 +73,7 @@ type (
 		Minio     MinioConfig     `env-prefix:"MINIO_"`
 		WebSocket WebSocketConfig `env-prefix:"WS_"`
 		FCM       FCMConfig       `env-prefix:"FCM_"`
+		Scheduler SchedulerConfig
 	}
 )
 

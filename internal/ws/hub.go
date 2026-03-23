@@ -66,8 +66,15 @@ func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				slog.Error("read error", "err", err)
+			// 1005 "no status" commonly appears on abrupt client disconnects.
+			// Treat common close codes as expected and avoid noisy error logs.
+			if websocket.IsUnexpectedCloseError(
+				err,
+				websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+				websocket.CloseNoStatusReceived,
+			) {
+				slog.Warn("unexpected websocket close", "user_id", userId, "err", err)
 			}
 			break
 		}

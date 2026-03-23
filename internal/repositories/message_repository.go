@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"socket-flow/internal/config"
 	"socket-flow/internal/models"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -17,15 +18,16 @@ type MessageRepository interface {
 	FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error)
 	MarkAsDeliveredMessages(ctx context.Context, messageIds []bson.ObjectID) error
 	DeleteMessages(ctx context.Context, messageIds []bson.ObjectID)
+	DeleteMessageByCreatedAt(ctx context.Context, ttl time.Time) error
 }
 
 type MessageRepo struct {
 	messageCollection *mongo.Collection
 }
 
-const messageCollection = "message"
-
 func NewMessageRepository(client *mongo.Client, cfg config.MongoConfig) *MessageRepo {
+	const messageCollection = "message"
+
 	collection := client.Database(cfg.Database).Collection(messageCollection)
 
 	return &MessageRepo{
@@ -111,4 +113,19 @@ func (m *MessageRepo) MarkAsDeliveredMessages(ctx context.Context, messageIds []
 
 func (m *MessageRepo) DeleteMessages(ctx context.Context, messageIds []bson.ObjectID) {
 
+}
+
+func (m *MessageRepo) DeleteMessageByCreatedAt(ctx context.Context, ttl time.Time) error {
+	filter := bson.M{
+		"created_at": bson.M{
+			"$lt": ttl,
+		},
+	}
+
+	_, err := m.messageCollection.DeleteMany(ctx, filter)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete messages older")
+	}
+
+	return nil
 }

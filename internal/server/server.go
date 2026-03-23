@@ -68,7 +68,19 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	upgrader := InitWebSocket(cfg.WebSocket)
 	pgClient := postgres.NewClient(db)
 	repositories := InitRepositories(pgClient, mongoClient, redisClient, cfg.Mongo)
-	services := initServices(transactor, repositories, cfg)
+	services, err := initServices(transactor, repositories, cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "init services")
+	}
+
+	schedulerCtx, schedulerCancel := context.WithCancel(ctx)
+	go func() {
+		schedulerErr := services.MessageScheduler.StartCleanupScheduler(schedulerCtx)
+		if schedulerErr != nil && !stdErrors.Is(schedulerErr, context.Canceled) {
+			slog.Error("message cleanup scheduler stopped with error", "err", schedulerErr)
+		}
+	}()
+
 	handler := initHandler(services, upgrader)
 	routers := initRouters(handler)
 
@@ -82,6 +94,8 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	}
 
 	srv.RegisterOnShutdown(func() {
+		schedulerCancel()
+
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
