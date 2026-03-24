@@ -73,7 +73,7 @@ func ParseJWT(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 
 	_, err := jwt.ParseWithClaims(
-		tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		tokenString, claims, func(token *jwt.Token) (any, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("invalid signing method")
 			}

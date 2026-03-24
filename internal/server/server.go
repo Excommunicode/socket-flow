@@ -74,6 +74,7 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	}
 
 	schedulerCtx, schedulerCancel := context.WithCancel(ctx)
+
 	go func() {
 		schedulerErr := services.MessageScheduler.StartCleanupScheduler(schedulerCtx)
 		if schedulerErr != nil && !stdErrors.Is(schedulerErr, context.Canceled) {

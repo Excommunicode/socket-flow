@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"slices"
 	"socket-flow/internal/config"
 	"strings"
 
@@ -22,12 +23,7 @@ func InitWebSocket(cfg config.WebSocketConfig) *websocket.Upgrader {
 				return true
 			}
 			origin := r.Header.Get("Origin")
-			for _, o := range allowedOrigins {
-				if o == origin {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(allowedOrigins, origin)
 		},
 		EnableCompression: cfg.EnableCompression,
 	}

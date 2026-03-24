@@ -13,10 +13,10 @@ import (
 )
 
 type MessageScheduler struct {
-	ttl               time.Duration
 	cleanupCron       string
-	MessageRepository repositories.MessageRepository
 	cronObject        *cron.Cron
+	ttl               time.Duration
+	MessageRepository repositories.MessageRepository
 }
 
 func NewMessageScheduler(c *cron.Cron, ttl string, cleanupCron string, messageRepository repositories.MessageRepository) (
@@ -58,6 +58,8 @@ func (m *MessageScheduler) StartCleanupScheduler(ctx context.Context) error {
 func (m *MessageScheduler) CleanMessages() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
+	slog.Info("start clean up messages")
 
 	threshold := time.Now().Add(-m.ttl)
 
