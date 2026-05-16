@@ -21,9 +21,12 @@ import (
 func main() {
 	ctx := context.Background()
 
-	isProd := *flag.String("env", "dev", "Application environment profile (dev, prod, test)") == "prod"
+	isProductionProfile := *flag.String("env", "dev", "Application environment profile (dev, prod, test)") == "prod"
+	
 
-	srv, err := server.NewServer(ctx, isProd)
+	srv, err := server.NewServer(ctx, isProductionProfile)
+
+	
 
 	if err != nil {
 		slog.Error("failed to initialize server", "err", err)
