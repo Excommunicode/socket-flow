@@ -1,38 +1,29 @@
 package middlewares
 
 import (
-	"net/http"
-	"socket-flow/internal/jwt"
-	"strings"
-
+	"socket-flow/internal/auth"
 	errs "socket-flow/internal/errors"
 
 	"github.com/gin-gonic/gin"
 )
 
-func JWTMiddleware() gin.HandlerFunc {
+func KeycloakMiddleware(authenticator *auth.KeycloakAuthenticator) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authHeader := ctx.GetHeader("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			ctx.JSON(
-				http.StatusUnauthorized,
-				gin.H{"error": errs.ErrAuthHeaderMissing.Error()},
-			)
+		tokenString, ok := auth.BearerToken(ctx.GetHeader("Authorization"))
+		if !ok {
+			errs.WriteError(ctx, 0, errs.ErrAuthHeaderMissing)
 			ctx.Abort()
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-		claims, err := jwt.ParseJWT(tokenString)
+		user, err := authenticator.Validate(ctx.Request.Context(), tokenString)
 		if err != nil {
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			errs.WriteError(ctx, 0, errs.ErrUnauthorizedToken)
 			ctx.Abort()
 			return
 		}
 
-		ctx.Set("claims", claims)
-		ctx.Set("tokenString", tokenString)
+		auth.SetUser(ctx, user)
 		ctx.Next()
 	}
 }

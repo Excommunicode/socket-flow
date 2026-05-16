@@ -2,13 +2,11 @@ openapi: 3.0.3
 info:
   title: Socket Flow API
   version: 1.0.0
-  description: API for authentication, users, messages, device tokens and websocket connection.
+  description: API for users, messages, device tokens and websocket connections secured by Keycloak.
 
 tags:
-  - name: auth
-    description: User authentication and session management.
   - name: users
-    description: User lookup endpoints.
+    description: Authenticated user endpoints.
   - name: messages
     description: Message search endpoints.
   - name: device-tokens
@@ -21,159 +19,29 @@ paths:
     get:
       tags: [websocket]
       summary: Open websocket connection
-      description: Upgrades HTTP connection to WebSocket and registers a client by `userId` query param.
+      description: Upgrades HTTP connection to WebSocket and registers a client by the Keycloak access token subject. Send the token in `Authorization: Bearer <token>` when the client supports headers, or as `access_token` query parameter for browser WebSocket clients.
+      security:
+        - keycloakBearer: []
       parameters:
-        - name: userId
+        - name: access_token
           in: query
-          required: true
-          description: User UUID used to bind socket connection to a user.
+          required: false
+          description: Keycloak access token alternative for clients that cannot send Authorization headers during WebSocket upgrade.
           schema:
             type: string
-            format: uuid
       responses:
         "101":
           description: WebSocket protocol upgraded successfully.
-        "400":
-          description: Invalid or missing userId.
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: Valid userId is required
-
-  /api/auth/register:
-    post:
-      tags: [auth]
-      summary: Register user
-      description: Creates a new user and returns auth tokens. Also sets auth cookies.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RegisterUserRequest"
-      responses:
-        "201":
-          description: User registered and tokens issued.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokensResponse"
-        "400":
-          description: Validation error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          description: User already exists.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /api/auth/login:
-    post:
-      tags: [auth]
-      summary: Login user
-      description: Authenticates user by phone and password, returns tokens and sets auth cookies.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RegisterUserRequest"
-      responses:
-        "200":
-          description: Login successful.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthTokensResponse"
-        "400":
-          description: Validation error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
         "401":
-          description: Invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal server error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /api/auth/logout:
-    post:
-      tags: [auth]
-      summary: Logout user
-      description: Invalidates current access/refresh token pair from cookies and clears auth cookies.
-      responses:
-        "200":
-          description: Logout successful.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: logout successfull
-        "401":
-          description: Missing/invalid cookies or invalid session.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SimpleError"
-        "500":
-          description: Failed to clear cookies.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SimpleError"
-
-  /api/auth/refresh:
-    post:
-      tags: [auth]
-      summary: Refresh tokens
-      description: Issues a new access and refresh token using `refresh_token` cookie, and resets auth cookies.
-      responses:
-        "201":
-          description: Tokens refreshed successfully.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RefreshTokensResponse"
-        "401":
-          description: Missing/invalid refresh token.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SimpleError"
-        "500":
-          description: Failed to set auth cookies.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SimpleError"
+          description: Missing or invalid Keycloak access token.
 
   /api/messages:
     post:
       tags: [messages]
       summary: Find messages
-      description: Returns paginated messages between two users for the requested current user context.
+      description: Returns paginated messages between the authenticated user and another user. `from` is always taken from the Keycloak token subject.
+      security:
+        - keycloakBearer: []
       requestBody:
         required: true
         content:
@@ -195,6 +63,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid Keycloak access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error.
           content:
@@ -202,32 +76,22 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
-  /api/users:
-    post:
+  /api/users/me:
+    get:
       tags: [users]
-      summary: Get user by phone
-      description: Finds user by phone number.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserRequest"
+      summary: Get current authenticated user
+      description: Returns identity claims extracted from the validated Keycloak access token.
+      security:
+        - keycloakBearer: []
       responses:
         "200":
-          description: User found.
+          description: Current user identity.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          description: Validation error.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal server error.
+                $ref: "#/components/schemas/AuthenticatedUser"
+        "401":
+          description: Missing or invalid Keycloak access token.
           content:
             application/json:
               schema:
@@ -237,7 +101,9 @@ paths:
     post:
       tags: [device-tokens]
       summary: Register device token
-      description: Saves or updates push notification token for a user and platform.
+      description: Saves or updates a push notification token for the authenticated Keycloak subject.
+      security:
+        - keycloakBearer: []
       requestBody:
         required: true
         content:
@@ -253,6 +119,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid Keycloak access token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error.
           content:
@@ -261,50 +133,21 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
 components:
+  securitySchemes:
+    keycloakBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak access token validated with the realm JWKS.
+
   schemas:
-    RegisterUserRequest:
-      type: object
-      required: [phoneNumber, Password]
-      properties:
-        phoneNumber:
-          type: string
-          example: "+77001234567"
-        Password:
-          type: string
-          format: password
-          example: "strong-password"
-
-    AuthTokensResponse:
-      type: object
-      properties:
-        access_token:
-          type: string
-        refresh_token:
-          type: string
-        phone_number:
-          type: string
-
-    RefreshTokensResponse:
-      type: object
-      properties:
-        access_token:
-          type: string
-        refresh_token:
-          type: string
-
     FindMessagesRequest:
       type: object
-      required: [currentUserId, from, to]
+      required: [to]
       properties:
-        currentUserId:
-          type: string
-          format: uuid
-        from:
-          type: string
-          format: uuid
         to:
           type: string
-          format: uuid
+          description: Keycloak subject of the other chat participant.
         limit:
           type: integer
           minimum: 0
@@ -324,10 +167,10 @@ components:
           type: string
         from:
           type: string
-          format: uuid
+          description: Keycloak subject of the sender.
         to:
           type: string
-          format: uuid
+          description: Keycloak subject of the recipient.
         isDelivered:
           type: boolean
         modified:
@@ -336,45 +179,25 @@ components:
           type: string
           format: date-time
 
-    UserRequest:
-      type: object
-      required: [phoneNumber]
-      properties:
-        phoneNumber:
-          type: string
-          example: "+77001234567"
-
-    User:
+    AuthenticatedUser:
       type: object
       properties:
-        id:
+        sub:
           type: string
-          format: uuid
+          description: Keycloak subject.
         username:
           type: string
-          nullable: true
         email:
           type: string
-          nullable: true
-        phoneNumber:
-          type: string
-        role:
-          type: integer
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
 
     RegisterDeviceTokenRequest:
       type: object
-      required: [userId, token, platform]
+      required: [token, platform]
       properties:
-        userId:
-          type: string
-          format: uuid
         token:
           type: string
         platform:
@@ -395,9 +218,3 @@ components:
         timestamp:
           type: string
           format: date-time
-
-    SimpleError:
-      type: object
-      properties:
-        error:
-          type: string

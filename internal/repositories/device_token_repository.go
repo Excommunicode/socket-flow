@@ -8,13 +8,12 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
 type DeviceTokenRepository interface {
-	Upsert(ctx context.Context, userID uuid.UUID, token, platform string) error
-	FindByUserID(ctx context.Context, userID uuid.UUID) ([]models.DeviceToken, error)
+	Upsert(ctx context.Context, userID string, token, platform string) error
+	FindByUserID(ctx context.Context, userID string) ([]models.DeviceToken, error)
 	DeleteByToken(ctx context.Context, token string) error
 }
 
@@ -32,7 +31,7 @@ func NewDeviceTokenRepository(client postgres.Client) *DeviceTokenRepositoryImpl
 
 const deviceTokensTable = "device_tokens"
 
-func (r *DeviceTokenRepositoryImpl) Upsert(ctx context.Context, userID uuid.UUID, token, platform string) error {
+func (r *DeviceTokenRepositoryImpl) Upsert(ctx context.Context, userID string, token, platform string) error {
 	now := time.Now()
 
 	const query = `
@@ -52,7 +51,7 @@ func (r *DeviceTokenRepositoryImpl) Upsert(ctx context.Context, userID uuid.UUID
 	return nil
 }
 
-func (r *DeviceTokenRepositoryImpl) FindByUserID(ctx context.Context, userID uuid.UUID) ([]models.DeviceToken, error) {
+func (r *DeviceTokenRepositoryImpl) FindByUserID(ctx context.Context, userID string) ([]models.DeviceToken, error) {
 	sql, args, err := r.queryBuilder.
 		Select("id", "user_id", "token", "platform", "created_at", "updated_at").
 		From(deviceTokensTable).

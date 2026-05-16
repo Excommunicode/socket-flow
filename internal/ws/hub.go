@@ -9,13 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )
 
 type Hub struct {
-	clients map[uuid.UUID]*websocket.Conn
+	clients map[string]*websocket.Conn
 	mu      sync.RWMutex
 
 	msgService services.MessageService
@@ -30,7 +29,7 @@ var errUserConnectionNotFound = errors.New("cannot find the connection with user
 func NewHub(msgService services.MessageService, notifService services.NotificationService) *Hub {
 
 	h := &Hub{
-		clients:    make(map[uuid.UUID]*websocket.Conn),
+		clients:    make(map[string]*websocket.Conn),
 		msgService: msgService,
 		saveChan:   make(chan models.RequestMessage, 10000),
 
@@ -40,7 +39,7 @@ func NewHub(msgService services.MessageService, notifService services.Notificati
 	return h
 }
 
-func (h *Hub) RegisterClient(conn *websocket.Conn, userId uuid.UUID) {
+func (h *Hub) RegisterClient(conn *websocket.Conn, userId string) {
 	h.mu.Lock()
 	if oldConn, ok := h.clients[userId]; ok {
 		oldConn.Close()
@@ -51,7 +50,7 @@ func (h *Hub) RegisterClient(conn *websocket.Conn, userId uuid.UUID) {
 	go h.handleMessages(conn, userId)
 }
 
-func (h *Hub) RemoveClient(userId uuid.UUID) {
+func (h *Hub) RemoveClient(userId string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if conn, ok := h.clients[userId]; ok {
@@ -60,7 +59,7 @@ func (h *Hub) RemoveClient(userId uuid.UUID) {
 	}
 }
 
-func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
+func (h *Hub) handleMessages(conn *websocket.Conn, userId string) {
 	defer h.RemoveClient(userId)
 
 	for {
@@ -82,6 +81,12 @@ func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
 			slog.Error("json error", "err", err)
 			continue
 		}
+		msg.From = userId
+		message, err = json.Marshal(msg)
+		if err != nil {
+			slog.Error("json marshal error", "err", err)
+			continue
+		}
 
 		err = h.SendToUser(msg.To, message)
 
@@ -89,7 +94,7 @@ func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
 
 		if err != nil {
 			if err == errUserConnectionNotFound {
-				go func(toUser uuid.UUID, senderMsg models.RequestMessage) {
+				go func(toUser string, senderMsg models.RequestMessage) {
 					notifCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 					defer cancel()
 
@@ -117,7 +122,7 @@ func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
 	}
 }
 
-func (h *Hub) SendToUser(userId uuid.UUID, data []byte) error {
+func (h *Hub) SendToUser(userId string, data []byte) error {
 	h.mu.RLock()
 	conn, ok := h.clients[userId]
 	h.mu.RUnlock()

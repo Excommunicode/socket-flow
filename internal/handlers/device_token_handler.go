@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"socket-flow/internal/auth"
 	"socket-flow/internal/errors"
 	"socket-flow/internal/models"
 	"socket-flow/internal/services"
@@ -30,7 +31,14 @@ func (h *DeviceTokenHandler) RegisterDeviceToken(c *gin.Context) {
 		return
 	}
 
-	err = h.DeviceTokenService.Register(ctx, body.UserID, body.Token, body.Platform)
+	user, err := auth.UserFromContext(c)
+	if err != nil {
+		_ = c.Error(err)
+		errors.WriteError(c, 0, err)
+		return
+	}
+
+	err = h.DeviceTokenService.Register(ctx, user.Subject, body.Token, body.Platform)
 
 	if err != nil {
 		_ = c.Error(err)

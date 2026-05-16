@@ -3,31 +3,41 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"socket-flow/internal/auth"
 	socket "socket-flow/internal/ws"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type SocketHandler struct {
-	hub      *socket.Hub
-	upgrader *websocket.Upgrader
+	hub           *socket.Hub
+	upgrader      *websocket.Upgrader
+	authenticator *auth.KeycloakAuthenticator
 }
 
-func NewSocketHandler(hub *socket.Hub, upgrader *websocket.Upgrader) *SocketHandler {
+func NewSocketHandler(
+	hub *socket.Hub,
+	upgrader *websocket.Upgrader,
+	authenticator *auth.KeycloakAuthenticator,
+) *SocketHandler {
 	return &SocketHandler{
-		hub:      hub,
-		upgrader: upgrader,
+		hub:           hub,
+		upgrader:      upgrader,
+		authenticator: authenticator,
 	}
 }
 func (s *SocketHandler) ServeMs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userIdRaw := r.URL.Query().Get("userId")
-	userId, err := uuid.Parse(userIdRaw)
 
+	tokenString, ok := auth.BearerToken(r.Header.Get("Authorization"))
+	if !ok {
+		tokenString = r.URL.Query().Get("access_token")
+	}
+
+	user, err := s.authenticator.Validate(ctx, tokenString)
 	if err != nil {
-		slog.ErrorContext(ctx, "cannot parse uuid", "err", err, "input", userIdRaw)
-		http.Error(w, "Valid userId is required", http.StatusBadRequest)
+		slog.WarnContext(ctx, "websocket authorization failed", "err", err)
+		http.Error(w, "Valid Keycloak access token is required", http.StatusUnauthorized)
 		return
 	}
 
@@ -38,5 +48,5 @@ func (s *SocketHandler) ServeMs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.hub.RegisterClient(conn, userId)
+	s.hub.RegisterClient(conn, user.Subject)
 }

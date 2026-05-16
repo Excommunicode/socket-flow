@@ -5,6 +5,7 @@ import (
 	stdErrors "errors"
 	"log/slog"
 	"net/http"
+	"socket-flow/internal/auth"
 	"socket-flow/internal/postgres"
 	"time"
 
@@ -12,12 +13,12 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func NewServer(ctx context.Context) (*http.Server, error) {
-	cfg, err := config.LoadConfig()
+func NewServer(ctx context.Context, envProfile bool) (*http.Server, error) {
+
+	cfg, err := config.LoadConfig(envProfile)
 	if err != nil {
 		return nil, errors.Wrap(err, "load config")
 	}
@@ -25,12 +26,11 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	var (
 		db          *sqlx.DB
 		mongoClient *mongo.Client
-		redisClient *redis.Client
 	)
 
 	defer func() {
 		if err != nil {
-			err := closeResources(ctx, db, mongoClient, redisClient)
+			err := closeResources(ctx, db, mongoClient)
 			if err != nil {
 				slog.Error("failed to cleanup resources during server init failure", "err", err)
 			}
@@ -47,11 +47,6 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		return nil, errors.Wrap(err, "init mongo")
 	}
 
-	redisClient, err = initRedis(cfg.Redis)
-	if err != nil {
-		return nil, errors.Wrap(err, "init redis")
-	}
-
 	err = runPgMigrations(cfg.Postgres)
 
 	if err != nil {
@@ -64,11 +59,10 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		return nil, errors.Wrap(err, "mongo migrations failed")
 	}
 
-	transactor := postgres.NewTransactionManager(db)
 	upgrader := InitWebSocket(cfg.WebSocket)
 	pgClient := postgres.NewClient(db)
-	repositories := InitRepositories(pgClient, mongoClient, redisClient, cfg.Mongo)
-	services, err := initServices(transactor, repositories, cfg)
+	repositories := InitRepositories(pgClient, mongoClient, cfg.Mongo)
+	services, err := initServices(repositories, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "init services")
 	}
@@ -82,7 +76,8 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		}
 	}()
 
-	handler := initHandler(services, upgrader)
+	authenticator := auth.NewKeycloakAuthenticator(cfg.Keycloak)
+	handler := initHandler(services, upgrader, authenticator)
 	routers := initRouters(handler)
 
 	srv := &http.Server{
@@ -100,7 +95,7 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if closeErr := closeResources(shutdownCtx, db, mongoClient, redisClient); closeErr != nil {
+		if closeErr := closeResources(shutdownCtx, db, mongoClient); closeErr != nil {
 			slog.Error("error shutting down resources", "err", closeErr)
 		}
 	})
@@ -108,7 +103,7 @@ func NewServer(ctx context.Context) (*http.Server, error) {
 	return srv, nil
 }
 
-func closeResources(ctx context.Context, db *sqlx.DB, mongoClient *mongo.Client, redisClient *redis.Client) error {
+func closeResources(ctx context.Context, db *sqlx.DB, mongoClient *mongo.Client) error {
 	var errs []error
 
 	if db != nil {
@@ -123,10 +118,5 @@ func closeResources(ctx context.Context, db *sqlx.DB, mongoClient *mongo.Client,
 		}
 	}
 
-	if redisClient != nil {
-		if err := redisClient.Close(); err != nil {
-			errs = append(errs, errors.Wrap(err, "close redis"))
-		}
-	}
 	return stdErrors.Join(errs...)
 }

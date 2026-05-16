@@ -28,26 +28,6 @@ var errorRegistry = []struct {
 	err  error
 	meta errorMeta
 }{
-	{ErrUserNotFound, errorMeta{
-		Code: "USER_NOT_FOUND", Message: "UserRepository not found",
-		Cause: "The specified email is not registered.", Fix: "Register or check the email address.", Status: http.StatusUnauthorized,
-	}},
-	{ErrUserExists, errorMeta{
-		Code: "USER_EXISTS", Message: "UserRepository already exists",
-		Cause: "Registration with the specified phone number has already been completed.", Fix: "Log in or recover your account.", Status: http.StatusConflict,
-	}},
-	{ErrUserCreationFailed, errorMeta{
-		Code: "USER_CREATION_FAILED", Message: "Failed to create user",
-		Cause: "Error saving data on the server.", Fix: "Try again later or contact support.", Status: http.StatusBadRequest,
-	}},
-	{ErrUserVerifyFailed, errorMeta{
-		Code: "USER_VERIFY_FAILED", Message: "UserRepository verification failed",
-		Cause: "Credential verification failure.", Fix: "Try logging in again.", Status: http.StatusUnauthorized,
-	}},
-	{ErrInvalidCreds, errorMeta{
-		Code: "INVALID_CREDENTIALS", Message: "Invalid credentials",
-		Cause: "Invalid email or password.", Fix: "Check email and password, reset password if necessary.", Status: http.StatusUnauthorized,
-	}},
 	{ErrInvalidID, errorMeta{
 		Code: "INVALID_ID", Message: "Invalid identifier",
 		Cause: "Invalid or non-existent ID provided.", Fix: "Check request parameters.", Status: http.StatusBadRequest,
@@ -58,15 +38,11 @@ var errorRegistry = []struct {
 	}},
 	{ErrUnauthorizedToken, errorMeta{
 		Code: "UNAUTHORIZED_TOKEN", Message: "Token invalid or missing",
-		Cause: "Token expired, invalid signature, or missing.", Fix: "Log in again to get a new token.", Status: http.StatusUnauthorized,
-	}},
-	{ErrTokenNotFound, errorMeta{
-		Code: "TOKEN_NOT_FOUND", Message: "Token not found",
-		Cause: "Token not found in storage or revoked.", Fix: "Log in again.", Status: http.StatusUnauthorized,
+		Cause: "Token expired, invalid signature, wrong issuer, wrong audience, or missing.", Fix: "Request a new Keycloak access token.", Status: http.StatusUnauthorized,
 	}},
 	{ErrClaimsNotFound, errorMeta{
 		Code: "CLAIMS_NOT_FOUND", Message: "Token claims not found",
-		Cause: "Token missing expected fields.", Fix: "Log in again to get a new token.", Status: http.StatusUnauthorized,
+		Cause: "Token missing expected fields.", Fix: "Request a new Keycloak access token.", Status: http.StatusUnauthorized,
 	}},
 	{ErrInvalidClaims, errorMeta{
 		Code: "INVALID_CLAIMS", Message: "Invalid token claims",

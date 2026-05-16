@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/pkg/errors"
@@ -12,9 +14,18 @@ import (
 type (
 	ServerConfig struct {
 		Port    string `env:"PORT"     env-default:"8080"`
-		Secret  string `env:"SECRET"`
 		BaseURL string `env:"BASE_URL" env-default:"http://localhost:8080"`
 		Domain  string `env:"DOMAIN"   env-default:"localhost"`
+	}
+
+	KeycloakConfig struct {
+		Issuer            string `env:"ISSUER"                env-required:"true"`
+		JWKSURL           string `env:"JWKS_URL"              env-required:"true"`
+		ClientID          string `env:"CLIENT_ID"             env-required:"true"`
+		Audience          string `env:"AUDIENCE"              env-default:""`
+		AllowedAlgorithms string `env:"ALLOWED_ALGORITHMS"   env-default:"RS256"`
+		JWKSCacheTTL      string `env:"JWKS_CACHE_TTL"       env-default:"10m"`
+		ClockSkew         string `env:"CLOCK_SKEW"           env-default:"30s"`
 	}
 
 	PGConfig struct {
@@ -30,12 +41,6 @@ type (
 		URI        string `env:"MONGO_URI"        env-default:"mongodb://localhost:27017"`
 		Database   string `env:"MONGO_DB"         env-default:"socketflow"`
 		Collection string `env:"MONGO_COLLECTION" env-default:"messages"`
-	}
-
-	RedisConfig struct {
-		Addr     string `env:"REDIS_ADDR" env-default:"localhost:6379"`
-		Password string `env:"PASSWORD"   env-default:"test"           json:"-"`
-		DB       int    `env:"REDIS_DB"   env-default:"0"`
 	}
 
 	WebSocketConfig struct {
@@ -67,9 +72,9 @@ type (
 
 	AppConfig struct {
 		Postgres  PGConfig        `env-prefix:"PG_"`
-		Redis     RedisConfig     `env-prefix:"REDIS_"`
 		Mongo     MongoConfig     `env-prefix:"MONGO_"`
 		Server    ServerConfig    `env-prefix:"SERVER_"`
+		Keycloak  KeycloakConfig  `env-prefix:"KEYCLOAK_"`
 		Minio     MinioConfig     `env-prefix:"MINIO_"`
 		WebSocket WebSocketConfig `env-prefix:"WS_"`
 		FCM       FCMConfig       `env-prefix:"FCM_"`
@@ -90,10 +95,44 @@ func (c PGConfig) DSN() string {
 	)
 }
 
-func LoadConfig() (*AppConfig, error) {
-	config := new(AppConfig)
+func (c KeycloakConfig) CacheDuration() time.Duration {
+	duration, err := time.ParseDuration(c.JWKSCacheTTL)
+	if err != nil {
+		return 10 * time.Minute
+	}
 
-	err := cleanenv.ReadEnv(config)
+	return duration
+}
+
+func (c KeycloakConfig) ClockSkewDuration() time.Duration {
+	duration, err := time.ParseDuration(c.ClockSkew)
+	if err != nil {
+		return 30 * time.Second
+	}
+
+	return duration
+}
+
+func (c KeycloakConfig) AllowsAlgorithm(alg string) bool {
+	for allowed := range strings.SplitSeq(c.AllowedAlgorithms, ",") {
+		if strings.TrimSpace(allowed) == alg {
+			return true
+		}
+	}
+
+	return false
+}
+
+func LoadConfig(envProfile bool) (*AppConfig, error) {
+	config := new(AppConfig)
+	var err error
+
+	if envProfile {
+		err = cleanenv.ReadEnv(config)
+	} else {
+		err = cleanenv.ReadConfig("/Users/farukh/sandbox/socket-flow/text", config)
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read environment config")
 	}

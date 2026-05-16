@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"socket-flow/internal/auth"
 	"socket-flow/internal/errors"
 	"socket-flow/internal/models"
 	"socket-flow/internal/services"
@@ -28,7 +29,18 @@ func (m *MessageHandler) FindMessage(c *gin.Context) {
 	if err != nil {
 		_ = c.Error(err)
 		errors.WriteValidationError(c, err.Error())
+		return
 	}
+
+	user, err := auth.UserFromContext(c)
+	if err != nil {
+		_ = c.Error(err)
+		errors.WriteError(c, 0, err)
+		return
+	}
+
+	body.CurrentUserID = user.Subject
+	body.From = user.Subject
 
 	result, err := m.MessageService.FindMessages(ctx, *body)
 	if err != nil {

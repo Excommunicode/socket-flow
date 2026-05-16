@@ -9,14 +9,13 @@ import (
 	"net/http"
 	"socket-flow/internal/repositories"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
 const fcmSendURL = "https://fcm.googleapis.com/v1/projects/%s/messages:send"
 
 type NotificationService interface {
-	SendPushNotification(ctx context.Context, toUserID uuid.UUID, title, body string) error
+	SendPushNotification(ctx context.Context, toUserID string, title, body string) error
 }
 
 type notificationService struct {
@@ -56,7 +55,7 @@ type fcmNotification struct {
 
 func (s *notificationService) SendPushNotification(
 	ctx context.Context,
-	toUserID uuid.UUID,
+	toUserID string,
 	title, body string,
 ) error {
 	if s.fcmProjectID == "" || s.fcmAccessToken == "" {

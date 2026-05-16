@@ -45,8 +45,7 @@ func (m *messageService) CreateMessage(ctx context.Context, msg models.RequestMe
 	return nil
 }
 
-func (m *messageService) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message,
-	error) {
+func (m *messageService) FindMessages(ctx context.Context, filter models.FindMessagesRequest) ([]models.Message, error) {
 	messages, err := m.MessageRepository.FindMessages(ctx, filter)
 	if err != nil {
 		slog.ErrorContext(ctx, "cannot found messages", "err", err)

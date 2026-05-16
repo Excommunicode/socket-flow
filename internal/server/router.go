@@ -15,28 +15,16 @@ func initRouters(handler *Handler) *gin.Engine {
 	r.GET("/ws", gin.WrapF(handler.SocketHandler.ServeMs))
 
 	api := r.Group("/api")
-	authRoutes := api.Group("/auth")
-
-	authHandler := handler.AuthHandler
-
-	{
-		authRoutes.POST("/register", authHandler.HandleRegister)
-		authRoutes.POST("/login", authHandler.HandleLogin)
-		authRoutes.POST("/logout", authHandler.HandleLogout)
-		authRoutes.POST("/refresh", authHandler.HandleRefreshToken)
-	}
+	api.Use(middlewares.KeycloakMiddleware(handler.Authenticator))
 
 	messageRouter := api.Group("/messages")
-
-	//messageRouter.Use(middlewares.JWTMiddleware())
 	{
 		messageRouter.POST("", handler.MessageHandler.FindMessage)
 	}
 
 	userRouter := api.Group("/users")
-	//userRouter.Use(middlewares.JWTMiddleware())
 	{
-		userRouter.POST("", handler.UserHandler.GetUserByPhone)
+		userRouter.GET("/me", handler.UserHandler.GetCurrentUser)
 	}
 
 	deviceTokenRouter := api.Group("/device-tokens")

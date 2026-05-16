@@ -3,7 +3,6 @@ package models
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -11,25 +10,25 @@ type (
 	Message struct {
 		ID          bson.ObjectID `bson:"_id,omitempty" json:"id"`
 		Msg         string        `bson:"msg" json:"msg"`
-		From        uuid.UUID     `bson:"from" json:"from"` // id
-		To          uuid.UUID     `bson:"to" json:"to"`     // id
+		From        string        `bson:"from" json:"from"`
+		To          string        `bson:"to" json:"to"`
 		IsDelivered bool          `bson:"isDelivered" json:"isDelivered"`
 		Modified    bool          `bson:"modified" json:"modified"`
 		CreatedAt   time.Time     `bson:"createdAt" json:"createdAt"`
 	}
 	RequestMessage struct {
-		Sender      string    `json:"sender"`
-		From        uuid.UUID `json:"from"`
-		To          uuid.UUID `json:"to"` // id
-		Msg         string    `json:"msg"`
-		IsDelivered bool      `json:"isDelivered"`
+		Sender      string `json:"sender"`
+		From        string `json:"from"`
+		To          string `json:"to" binding:"required"`
+		Msg         string `json:"msg"`
+		IsDelivered bool   `json:"isDelivered"`
 	}
 
 	FindMessagesRequest struct {
-		CurrentUserID uuid.UUID `form:"currentUserId" binding:"required"`
-		From          uuid.UUID `form:"from" binding:"required"`
-		To            uuid.UUID `form:"to" binding:"required"`
-		Limit         uint      `form:"limit,default=20"`
-		Offset        uint      `form:"offset,default=0"`
+		CurrentUserID string `json:"-" form:"-"`
+		From          string `json:"from" binding:"required"`
+		To            string `json:"to" binding:"required"`
+		Limit         uint   `json:"limit" form:"limit,default=20"`
+		Offset        uint   `json:"offset" form:"offset,default=0"`
 	}
 )

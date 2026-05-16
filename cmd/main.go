@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,7 +13,6 @@ import (
 
 	"socket-flow/internal/server"
 
-
 	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,8 +21,9 @@ import (
 func main() {
 	ctx := context.Background()
 
+	isProd := *flag.String("env", "dev", "Application environment profile (dev, prod, test)") == "prod"
 
-	srv, err := server.NewServer(ctx)
+	srv, err := server.NewServer(ctx, isProd)
 
 	if err != nil {
 		slog.Error("failed to initialize server", "err", err)
