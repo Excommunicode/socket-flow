@@ -66,8 +66,6 @@ func (h *Hub) handleMessages(conn *websocket.Conn, userId uuid.UUID) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			// 1005 "no status" commonly appears on abrupt client disconnects.
-			// Treat common close codes as expected and avoid noisy error logs.
 			if websocket.IsUnexpectedCloseError(
 				err,
 				websocket.CloseNormalClosure,

@@ -12,7 +12,6 @@ import (
 
 	"socket-flow/internal/server"
 
-	"github.com/Excommunicode/logging"
 
 	_ "github.com/golang-migrate/migrate/v4/database/mongodb"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -22,7 +21,6 @@ import (
 func main() {
 	ctx := context.Background()
 
-	logging.Info("Hello world", ctx)
 
 	srv, err := server.NewServer(ctx)
 

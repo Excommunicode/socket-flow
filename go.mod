@@ -4,7 +4,6 @@ go 1.26.1
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/Excommunicode/logging v0.1.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/caitlinelfring/go-env-default v1.1.0
 	github.com/gin-contrib/cors v1.7.6
@@ -19,6 +18,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.98
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.17.3
+	github.com/robfig/cron/v3 v3.0.1
 	go.mongodb.org/mongo-driver/v2 v2.5.0
 	golang.org/x/crypto v0.46.0
 )
@@ -64,7 +64,6 @@ require (
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect

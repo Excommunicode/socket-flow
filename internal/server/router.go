@@ -7,14 +7,14 @@ import (
 )
 
 func initRouters(handler *Handler) *gin.Engine {
-	router := gin.Default()
+	r := gin.Default()
 
-	router.Use(middlewares.LoggerMiddleware())
-	router.Use(middlewares.CORSMiddleware())
+	r.Use(middlewares.LoggerMiddleware())
+	r.Use(middlewares.CORSMiddleware())
 
-	router.GET("/ws", gin.WrapF(handler.SocketHandler.ServeMs))
+	r.GET("/ws", gin.WrapF(handler.SocketHandler.ServeMs))
 
-	api := router.Group("/api")
+	api := r.Group("/api")
 	authRoutes := api.Group("/auth")
 
 	authHandler := handler.AuthHandler
@@ -44,5 +44,5 @@ func initRouters(handler *Handler) *gin.Engine {
 		deviceTokenRouter.POST("", handler.DeviceTokenHandler.RegisterDeviceToken)
 	}
 
-	return router
+	return r
 }
