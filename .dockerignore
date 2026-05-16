@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Environment
+.env
+
+# Docs
+README.md
+docs/
+
+# Logs
+*.log
+
+# Build artifacts
+bin/
+dist/
+build/
+tmp/
+temp/
+
+# Go
+coverage.out
+*.test
+
+# Local volumes
+postgres_data/
+mongo_data/
+redis_data/
+minio_data/
+
+# Docker
+docker-compose.yaml
+
+# OS
+.DS_Store

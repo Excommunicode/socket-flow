@@ -1,0 +1,38 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment
+.env
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Build
+bin/
+dist/
+build/
+
+# Go
+coverage.out
+*.test
+
+# Vendor
+vendor/
+
+# Docker / Podman volumes
+postgres_data/
+mongo_data/
+redis_data/
+minio_data/
+
+# Temporary
+tmp/
+temp/
+
+# Generated
+*.out
